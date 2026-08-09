@@ -24,12 +24,12 @@ export default function ManageRefunds() {
       {loading && <p className="muted">Loading…</p>}
 
       <div className="admin-summary">
-        Total refunded: <b>₹{total.toLocaleString('en-IN')}</b> across {refunds.length} refunds
-        {slots > 0 && <> · {slots} hours released</>}
+        Total Refunded: <b>₹{total.toLocaleString('en-IN')}</b> Across {refunds.length} Refunds
+        {slots > 0 && <> · {slots} Hours Released</>}
       </div>
 
       {!loading && refunds.length === 0 && !error && (
-        <p className="muted">No refunds yet.</p>
+        <p className="muted">No Refunds Yet.</p>
       )}
 
       {refunds.length > 0 && (
@@ -38,7 +38,7 @@ export default function ManageRefunds() {
             <thead>
               <tr>
                 <th>Refund ID</th><th>User</th><th>Booking</th><th>Hours</th>
-                <th>Amount</th><th>Refund to</th><th>Status</th><th>Processed</th>
+                <th>Amount</th><th>Refund To</th><th>Status</th><th>Processed</th>
               </tr>
             </thead>
             <tbody>
@@ -61,7 +61,7 @@ export default function ManageRefunds() {
                     <td>{r.slotCount || r.bookings?.length || 1}</td>
                     <td><b>₹{r.amount?.toLocaleString('en-IN')}</b></td>
                     <td>
-                      {r.refundMethod || 'Original method'}
+                      {r.refundMethod || 'Original Method'}
                       {r.refundDetails && (
                         <><br /><span className="muted small mono">{r.refundDetails}</span></>
                       )}
