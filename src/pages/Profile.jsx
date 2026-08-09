@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { updateProfile, fetchUserStats, saveUser, fetchMyTurfs, fetchPlanStatus } from '../utils/api'
+import ThemeToggle from '../components/ThemeToggle'
 
 export default function Profile({ user, onUserUpdate, onLogout }) {
   const navigate = useNavigate()
@@ -114,6 +115,10 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
       )}
       {ok && <p className="pf-ok">{ok}</p>}
 
+{/* Appearance */}
+      <p className="pf-section-label">Appearance</p>
+      <ThemeToggle />
+
       {/* Turf owner section */}
       <p className="pf-section-label">Turf Owner</p>
       {plan?.hasPlan ? (
@@ -184,7 +189,7 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
         </button>
       </div>
 
-      <button className="pf-logout" onClick={onLogout}>Log out</button>
+      <button className="pf-logout" onClick={onLogout}>Log Out</button>
       <p className="pf-version">Turf Arena · Version 1.0</p>
     </div>
   )
