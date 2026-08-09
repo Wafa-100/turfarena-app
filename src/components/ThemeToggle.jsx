@@ -3,9 +3,9 @@ import { getStoredTheme, applyTheme, resolveTheme, watchSystemTheme } from '../u
 import Icon from './Icon'
 
 const OPTIONS = [
-  { id: 'light',  label: 'Light',  icon: 'sun',     sub: 'Bright and clean' },
-  { id: 'dark',   label: 'Dark',   icon: 'moon',    sub: 'Easier at night' },
-  { id: 'system', label: 'System', icon: 'monitor', sub: 'Match my device' }
+  { id: 'light',  label: 'Light',  icon: 'sun',     sub: 'Bright And Clean' },
+  { id: 'dark',   label: 'Dark',   icon: 'moon',    sub: 'Easier At Night' },
+  { id: 'system', label: 'System', icon: 'monitor', sub: 'Match My Device' }
 ]
 
 export default function ThemeToggle() {
@@ -39,7 +39,7 @@ export default function ThemeToggle() {
       </div>
       {choice === 'system' && (
         <p className="tt-note">
-          Currently showing <b>{resolved}</b>, following your device setting.
+          Currently Showing <b>{resolved}</b>, Following Your Device Setting.
         </p>
       )}
     </div>

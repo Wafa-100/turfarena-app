@@ -105,14 +105,14 @@ export default function AddTurf({ user }) {
         <div className="gate-mark">
           <Icon name="lock" size={26} />
         </div>
-        <h1 className="gate-title">A plan is needed</h1>
+        <h1 className="gate-title">A Plan Is Needed</h1>
         <p className="gate-sub">
-          Listing a ground on TurfArena requires an active owner plan.
-          Choose one and you can publish straight away.
+          Listing A Ground On Turf Arena Requires An Active Owner Plan.
+          Choose One And You Can Publish Straight Away.
         </p>
 
         <div className="gate-card">
-          <p className="gate-card-label">Available plans</p>
+          <p className="gate-card-label">Available Plans</p>
 
           <div className="gate-row">
             <div>
@@ -121,9 +121,9 @@ export default function AddTurf({ user }) {
                   <Icon name="calendar" size={11} /> Monthly
                 </span>
               </p>
-              <p className="gate-row-meta">3 grounds · 30 days</p>
+              <p className="gate-row-meta">3 Grounds · 30 Days</p>
             </div>
-            <span className="gate-row-price">₹2,500</span>
+            <span className="gate-row-price">₹1000</span>
           </div>
 
           <div className="gate-row">
@@ -132,18 +132,18 @@ export default function AddTurf({ user }) {
                 <span className="a-badge a-badge-yellow">
                   <Icon name="star" size={11} filled /> Yearly
                 </span>
-                <span className="gate-badge">Best value</span>
+                <span className="gate-badge">Best Value</span>
               </p>
-              <p className="gate-row-meta">6 grounds · 365 days</p>
+              <p className="gate-row-meta">6 Grounds · 365 Days</p>
             </div>
-            <span className="gate-row-price">₹25,000</span>
+            <span className="gate-row-price">₹9,500</span>
           </div>
         </div>
 
         <button className="pp-cta" onClick={() => navigate('/plan')}>
-          View plans <Icon name="arrow" size={17} />
+          View Plans <Icon name="arrow" size={17} />
         </button>
-        <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
+        <button className="btn-ghost" onClick={() => navigate('/')}>Back To Home</button>
       </div>
     )
   }
@@ -155,17 +155,17 @@ export default function AddTurf({ user }) {
         <div className="gate-mark gate-mark-warn">
           <Icon name="alert" size={26} />
         </div>
-        <h1 className="gate-title">You've used every slot</h1>
+        <h1 className="gate-title">You've Used Every Slot</h1>
         <p className="gate-sub">
-          Your {planInfo.plan.planType} plan covers {planInfo.plan.turfLimit} grounds,
-          and all {planInfo.turfsUsed} are live. Remove one, or upgrade for more room.
+          Your {planInfo.plan.planType} Plan Covers {planInfo.plan.turfLimit} Grounds,
+          And All {planInfo.turfsUsed} Are Live. Remove One, Or Upgrade For More Room.
         </p>
 
         <div className="gate-card">
           <div className="gate-row">
             <div>
-              <p className="gate-row-name">Grounds listed</p>
-              <p className="gate-row-meta">{planInfo.daysLeft} days left on this plan</p>
+              <p className="gate-row-name">Grounds Listed</p>
+              <p className="gate-row-meta">{planInfo.daysLeft} Days Left On This Plan</p>
             </div>
             <span className="gate-row-price">
               {planInfo.turfsUsed}/{planInfo.plan.turfLimit}
@@ -174,9 +174,9 @@ export default function AddTurf({ user }) {
         </div>
 
         <button className="pp-cta" onClick={() => navigate('/profile')}>
-          Manage my grounds <Icon name="arrow" size={17} />
+          Manage My Grounds <Icon name="arrow" size={17} />
         </button>
-        <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
+        <button className="btn-ghost" onClick={() => navigate('/')}>Back To Home</button>
       </div>
     )
   }
@@ -196,11 +196,11 @@ export default function AddTurf({ user }) {
         <span className="at-banner-dot" />
         <div>
           <p className="at-banner-title">
-            {planInfo.plan.planType === 'monthly' ? 'Monthly' : 'Yearly'} plan active
+            {planInfo.plan.planType === 'monthly' ? 'Monthly' : 'Yearly'} Plan Active
           </p>
           <p className="at-banner-sub">
-            {planInfo.turfsUsed} of {planInfo.plan.turfLimit} grounds used
-            {' · '}{planInfo.daysLeft} days left
+            {planInfo.turfsUsed} Of {planInfo.plan.turfLimit} Grounds Used
+            {' · '}{planInfo.daysLeft} Days Left
           </p>
         </div>
       </div>
@@ -229,12 +229,12 @@ export default function AddTurf({ user }) {
 
         <button type="button" className="btn-locate"
           onClick={handleFindLocation} disabled={geocoding}>
-          {geocoding ? 'Finding location…' : <><Icon name="pin" size={17} /> Find location from address</>}
+          {geocoding ? 'Finding location…' : <><Icon name="pin" size={17} /> Find Location From Address</>}
         </button>
 
         {foundLocation && (
           <div className="location-found">
-            <p className="success-note"><Icon name="check" size={14} /> Location found — {f.lat}, {f.lng}</p>
+            <p className="success-note"><Icon name="check" size={14} /> Location Found — {f.lat}, {f.lng}</p>
             <p className="muted small" style={{ marginBottom: 8 }}>
               {foundLocation.displayName}
             </p>
@@ -246,12 +246,12 @@ export default function AddTurf({ user }) {
 
         <div className="two-col">
           <div>
-            <label>Latitude (auto-filled)</label>
+            <label>Latitude (Auto-Filled)</label>
             <input value={f.lat} onChange={e => upd('lat', e.target.value)}
               placeholder="19.1364" />
           </div>
           <div>
-            <label>Longitude(auto-filled)</label>
+            <label>Longitude(Auto-Filled)</label>
             <input value={f.lng} onChange={e => upd('lng', e.target.value)}
               placeholder="72.8296" />
           </div>
@@ -278,7 +278,7 @@ export default function AddTurf({ user }) {
           <div>
             <label>Surface</label>
             <input value={f.surface} onChange={e => upd('surface', e.target.value)}
-              placeholder="Artificial grass" />
+              placeholder="Artificial Grass" />
           </div>
           <div>
             <label>Size</label>
@@ -300,8 +300,8 @@ export default function AddTurf({ user }) {
 
         <div className="photos-section">
           <h3 className="at-photos-head">
-          <Icon name="camera" size={18} /> Ground photos
-          <span className="at-photos-count">up to 5</span>
+          <Icon name="camera" size={18} /> Ground Photos
+          <span className="at-photos-count">Up To 5</span>
         </h3>
           <p className="muted small" style={{ marginBottom: 12 }}>
             Paste Image URLs.

@@ -6,10 +6,10 @@ import BookingTicket from '../components/BookingTicket'
 import Icon from '../components/Icon'
 
 const REFUND_METHODS = [
-  { id: 'original', label: 'Original payment method', sub: 'Back to how you paid',        icon: 'undo',   needs: null },
+  { id: 'original', label: 'Original Payment Method', sub: 'Back to how you paid',        icon: 'undo',   needs: null },
   { id: 'upi',      label: 'UPI',                     sub: 'Instant to your UPI ID',      icon: 'phone',  needs: 'UPI ID (e.g. name@paytm)' },
-  { id: 'bank',     label: 'Bank account',            sub: '3–5 working days',            icon: 'bank',   needs: 'Account number' },
-  { id: 'wallet',   label: 'TurfArena wallet',        sub: 'Instant, use on next booking', icon: 'wallet', needs: null }
+  { id: 'bank',     label: 'Bank Account',            sub: '3–5 working days',            icon: 'bank',   needs: 'Account number' },
+  { id: 'wallet',   label: 'TurfArena Wallet',        sub: 'Instant, use on next booking', icon: 'wallet', needs: null }
 ]
 
 /* Group bookings that were paid for together into one entry */

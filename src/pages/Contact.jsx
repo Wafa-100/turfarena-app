@@ -3,10 +3,10 @@ import { sendContact } from '../utils/api'
 import Icon from '../components/Icon'
 
 const TOPICS = [
-  { id: 'booking', icon: 'calendar', label: 'Booking issue', sub: 'Slot, cancellation or refund' },
-  { id: 'payment', icon: 'card', label: 'Payment problem', sub: 'Failed or duplicate payment' },
-  { id: 'listing', icon: 'building', label: 'List my ground', sub: 'Plans and registration' },
-  { id: 'other', icon: 'chat', label: 'Something else', sub: 'Feedback or general query' }
+  { id: 'booking', icon: 'calendar', label: 'Booking Issue', sub: 'Slot, Cancellation Or Refund' },
+  { id: 'payment', icon: 'card', label: 'Payment Problem', sub: 'Failed Or Duplicate Payment' },
+  { id: 'listing', icon: 'building', label: 'List My Ground', sub: 'Plans And Registration' },
+  { id: 'other', icon: 'chat', label: 'Something Else', sub: 'Feedback Or General Query' }
 ]
 
 const FAQS = [
@@ -64,8 +64,8 @@ export default function Contact({ user }) {
   return (
     <div className="page ct-page">
       <header className="page-head">
-        <h1>Help and support</h1>
-        <p className="muted">We usually reply within a few hours</p>
+        <h1>Help And Support</h1>
+        <p className="muted">We Usually Reply Within A Few Hours</p>
       </header>
 
       <div className="ct-quick">
@@ -74,7 +74,7 @@ export default function Contact({ user }) {
             <Icon name="phone" size={17} />
           </span>
           <div>
-            <p className="ct-quick-title">Call us</p>
+            <p className="ct-quick-title">Call Us</p>
             <p className="ct-quick-sub">+91 90000 12345</p>
           </div>
         </a>
@@ -83,7 +83,7 @@ export default function Contact({ user }) {
             <Icon name="mail" size={17} />
           </span>
           <div>
-            <p className="ct-quick-title">Email us</p>
+            <p className="ct-quick-title">Email Us</p>
             <p className="ct-quick-sub">support@turfarena.in</p>
           </div>
         </a>
@@ -93,14 +93,14 @@ export default function Contact({ user }) {
         <div className="ct-status-row">
           <span className="ct-status-dot" />
           <div>
-            <p className="ct-status-title">Support is online</p>
-            <p className="ct-status-sub">Every day, 8:00 AM to 10:00 PM IST</p>
+            <p className="ct-status-title">Support Is Online</p>
+            <p className="ct-status-sub">Every Day, 6:00 AM to 5:59:00 AM IST</p>
           </div>
-          <span className="ct-status-badge">~2 hrs</span>
+          <span className="ct-status-badge">~24 hrs</span>
         </div>
       </div>
 
-      <h2 className="ct-heading">Common questions</h2>
+      <h2 className="ct-heading">Common Questions</h2>
       <div className="ct-faqs">
         {FAQS.map((f, i) => (
           <div key={i} className={'ct-faq' + (openFaq === i ? ' ct-faq-open' : '')}>
@@ -115,21 +115,21 @@ export default function Contact({ user }) {
         ))}
       </div>
 
-      <h2 className="ct-heading">Send us a message</h2>
+      <h2 className="ct-heading">Send Us A Message</h2>
       {sent ? (
         <div className="ct-sent">
           <span className="ct-sent-tick">
             <Icon name="check" size={24} />
           </span>
-          <p className="ct-sent-title">Message received</p>
+          <p className="ct-sent-title">Message Received</p>
           <p className="ct-sent-sub">
-            We have your message and will reply to <b>{user.email}</b> shortly.
+            We Have Your Message And Will Reply To <b>{user.email}</b> Shortly.
           </p>
-          <button className="btn-ghost" onClick={() => setSent(false)}>Send another</button>
+          <button className="btn-ghost" onClick={() => setSent(false)}>Send Another</button>
         </div>
       ) : (
         <form className="ct-form" onSubmit={submit}>
-          <p className="ct-form-label">What is this about?</p>
+          <p className="ct-form-label">What Is This About?</p>
           <div className="ct-topics">
             {TOPICS.map(t => (
               <button
@@ -147,29 +147,29 @@ export default function Contact({ user }) {
             ))}
           </div>
 
-          <p className="ct-form-label">Your message</p>
+          <p className="ct-form-label">Your Message</p>
           <textarea
             rows={4}
             value={msg}
             onChange={e => setMsg(e.target.value)}
-            placeholder="Tell us what happened, and include a booking ID if you have one"
+            placeholder="Tell Us What Happened, And Include A Booking ID If You Have One"
             required
           />
 
           <p className="ct-form-note">
-            Replying to <b>{user.email}</b> — update it in your profile if that is wrong.
+            Replying To <b>{user.email}</b> — Update It In Your Profile If That Is Wrong.
           </p>
 
           {error && <p className="error">{error}</p>}
 
           <button className="btn-primary" type="submit" disabled={busy}>
-            {busy ? 'Sending…' : 'Send message'}
+            {busy ? 'Sending…' : 'Send Message'}
           </button>
         </form>
       )}
 
-      <h2 className="ct-heading">Follow TurfArena</h2>
-      <p className="ct-social-sub">Ground openings, offers and match highlights</p>
+      <h2 className="ct-heading">Follow Turf Arena</h2>
+      <p className="ct-social-sub">Ground Openings, Offers And Match Highlights</p>
       <div className="ct-socials">
         {SOCIALS.map(s => (
           <a key={s.name} href={s.url} target="_blank" rel="noreferrer" className="ct-social" title={s.name}>
@@ -182,7 +182,7 @@ export default function Contact({ user }) {
       </div>
 
       <div className="ct-office">
-        <p className="ct-office-title">TurfArena Support Centre</p>
+        <p className="ct-office-title">Turf Arena Support Centre</p>
         <p className="ct-office-line">
           <Icon name="pin" size={14} /> 2nd Floor, Sports Hub Complex, MG Road
         </p>
