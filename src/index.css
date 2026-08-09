@@ -1106,7 +1106,7 @@ select {
 .pf-version { text-align: center; font-size: 11px; color: var(--text-3); margin-top: 18px; }
 
 /* Theme toggle */
-.tt-wrap { }
+.tt-wrap { margin-bottom: 4px; }
 .tt-options { display: flex; flex-direction: column; gap: 9px; }
 .tt-option {
   position: relative;
