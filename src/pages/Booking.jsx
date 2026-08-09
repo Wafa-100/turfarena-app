@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf, fetchBookedSlots, demoPay } from '../utils/api'
 import { generateSlots, getNext7Days, isPastSlot, prettyDate } from '../utils/slots'
+import Icon from '../components/Icon'
 
 const BANKS = ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Bank']
 const WALLETS = ['Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay']
 const MODES = [
-  { id: 'card', label: 'Card', icon: '💳' },
-  { id: 'upi', label: 'UPI', icon: '📱' },
-  { id: 'netbanking', label: 'Net Banking', icon: '🏦' },
-  { id: 'wallet', label: 'Wallet', icon: '👛' }
+  { id: 'card',       label: 'Card',        icon: 'card' },
+  { id: 'upi',        label: 'UPI',         icon: 'phone' },
+  { id: 'netbanking', label: 'Net Banking', icon: 'bank' },
+  { id: 'wallet',     label: 'Wallet',      icon: 'wallet' }
 ]
 
 export default function Booking({ user }) {
@@ -20,15 +21,15 @@ export default function Booking({ user }) {
   const [turf, setTurf] = useState(null)
   const [taken, setTaken] = useState([])
   const [date, setDate] = useState(days[0].iso)
-  const [picked, setPicked] = useState([])          // ← ARRAY of slots now
+  const [picked, setPicked] = useState([])
   const [error, setError] = useState('')
 
   const [showPay, setShowPay] = useState(false)
   const [mode, setMode] = useState('card')
   const [cardName, setCardName] = useState(user.name)
-  const [cardNumber, setCardNumber] = useState('')
-  const [expiry, setExpiry] = useState('')
-  const [cvv, setCvv] = useState('')
+  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242')
+  const [expiry, setExpiry] = useState('12/29')
+  const [cvv, setCvv] = useState('123')
   const [upiId, setUpiId] = useState('')
   const [bank, setBank] = useState(BANKS[0])
   const [wallet, setWallet] = useState(WALLETS[0])
@@ -45,15 +46,11 @@ export default function Booking({ user }) {
   const slots = generateSlots(turf.openTime, turf.closeTime)
   const total = turf.price * picked.length
 
-  // toggle a slot on/off
   function toggle(slot) {
     setPicked(p => p.includes(slot) ? p.filter(s => s !== slot) : [...p, slot])
   }
 
-  // sort picked slots by start hour so the summary reads in order
-  const sorted = [...picked].sort((a, b) =>
-    parseInt(a.split(':')[0], 10) - parseInt(b.split(':')[0], 10)
-  )
+  const sorted = [...picked].sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
 
   async function pay() {
     setProcessing(true); setError('')
@@ -70,22 +67,20 @@ export default function Booking({ user }) {
 
   return (
     <div className="page bk-page">
-      {/* Turf strip */}
       <div className="bk-turf-strip">
         <img src={turf.photo || turf.photos?.[0]} alt="" className="bk-turf-img"
           onError={e => { e.target.style.display = 'none' }} />
         <div>
           <h1 className="bk-turf-name">{turf.name}</h1>
           <p className="bk-turf-meta">{turf.sport} · {turf.city}</p>
-          <p className="bk-turf-rate">₹{turf.price} <span>Per Hour</span></p>
+          <p className="bk-turf-rate">₹{turf.price} <span>per hour</span></p>
         </div>
       </div>
 
-      {/* Date picker */}
       <div className="bk-section">
         <div className="bk-section-head">
-          <h2 className="bk-label">Select Date</h2>
-          <span className="bk-hint">Next 7 Days</span>
+          <h2 className="bk-label">Select date</h2>
+          <span className="bk-hint">Next 7 days</span>
         </div>
         <div className="bk-date-row">
           {days.map(d => {
@@ -103,11 +98,10 @@ export default function Booking({ user }) {
         </div>
       </div>
 
-      {/* Slots */}
       <div className="bk-section">
         <div className="bk-section-head">
-          <h2 className="bk-label">Choose Your Hours</h2>
-          <span className="bk-hint">Tap To Select Multiple Slots</span>
+          <h2 className="bk-label">Choose your hours</h2>
+          <span className="bk-hint">Tap to select multiple</span>
         </div>
 
         <div className="bk-legend">
@@ -129,24 +123,31 @@ export default function Booking({ user }) {
                 <span className="bk-slot-time">{s}</span>
                 {isTaken && <span className="bk-slot-note">Booked</span>}
                 {!isTaken && isPast && <span className="bk-slot-note">Passed</span>}
-                {on && <span className="bk-slot-tick">✓</span>}
+                {on && <span className="bk-slot-tick"><Icon name="check" size={11} /></span>}
               </button>
             )
           })}
         </div>
       </div>
 
-      {error && !showPay && <p className="error">{error}</p>}
-      <div style={{ height: picked.length ? 150 : 20 }} />
+      {picked.length > 0 && (
+        <div className="summary-card">
+          <p><Icon name="calendar" size={14} /> {prettyDate(date)}</p>
+          <p><Icon name="clock" size={14} /> {sorted.join(' · ')}</p>
+          <p><Icon name="rupee" size={14} /> Total: <b>₹{total.toLocaleString('en-IN')}</b></p>
+        </div>
+      )}
 
-      {/* Sticky summary bar */}
+      {error && !showPay && <p className="error">{error}</p>}
+      <div style={{ height: picked.length ? 160 : 20 }} />
+
       {picked.length > 0 && (
         <div className="bk-bar">
           <div className="bk-bar-inner">
             <div className="bk-bar-top">
               <div>
                 <p className="bk-bar-count">
-                  {picked.length} Hour{picked.length > 1 ? 's' : ''} Selected
+                  {picked.length} hour{picked.length > 1 ? 's' : ''} selected
                 </p>
                 <p className="bk-bar-slots">{sorted.join(' · ')}</p>
               </div>
@@ -159,20 +160,21 @@ export default function Booking({ user }) {
                 <p className="bk-bar-calc">₹{turf.price} × {picked.length}</p>
               </div>
               <button className="bk-pay" onClick={() => { setError(''); setShowPay(true) }}>
-                Continue To Pay
+                Continue
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Payment sheet */}
       {showPay && (
         <div className="overlay">
           <div className="pay-card">
             <div className="pay-head">
-              <h2>Complete Payment</h2>
-              <button className="pay-close" onClick={() => setShowPay(false)}>✕</button>
+              <h2>Complete payment</h2>
+              <button className="pay-close" onClick={() => setShowPay(false)}>
+                <Icon name="close" size={14} />
+              </button>
             </div>
 
             <div className="pay-summary">
@@ -181,28 +183,28 @@ export default function Booking({ user }) {
                 {sorted.map(s => <span key={s} className="pay-chip">{s}</span>)}
               </div>
               <div className="pay-sum-row pay-sum-total">
-                <span>{picked.length} Hour{picked.length > 1 ? 's' : ''} × ₹{turf.price}</span>
+                <span>{picked.length} hour{picked.length > 1 ? 's' : ''} × ₹{turf.price}</span>
                 <b>₹{total.toLocaleString('en-IN')}</b>
               </div>
             </div>
 
-            <div className="demo-note">Online Payment — All Payments Are Fully Secured</div>
+            <div className="demo-note">Demo payment — no real money is charged</div>
 
-            <p className="pay-mode-label">Payment Method</p>
+            <p className="pay-mode-label">Payment method</p>
             <div className="pay-mode-grid">
               {MODES.map(m => (
                 <button key={m.id} className={'pay-mode-btn' + (mode === m.id ? ' pay-mode-active' : '')}
                   onClick={() => setMode(m.id)}>
-                  <span style={{ fontSize: 19 }}>{m.icon}</span>
-                  <p style={{ fontSize: 11.5, marginTop: 4, fontWeight: 600 }}>{m.label}</p>
+                  <Icon name={m.icon} size={19} className="pay-mode-icon" />
+                  <p style={{ fontSize: 11.5, marginTop: 5, fontWeight: 600 }}>{m.label}</p>
                 </button>
               ))}
             </div>
 
             {mode === 'card' && (<>
-              <label className="pay-field-label">Name On Card</label>
+              <label className="pay-field-label">Name on card</label>
               <input value={cardName} onChange={e => setCardName(e.target.value)} />
-              <label className="pay-field-label">Card Number</label>
+              <label className="pay-field-label">Card number</label>
               <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} maxLength={19} />
               <div className="two-col">
                 <div><label className="pay-field-label">Expiry</label>
@@ -216,13 +218,13 @@ export default function Booking({ user }) {
               <input value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="yourname@paytm" />
             </>)}
             {mode === 'netbanking' && (<>
-              <label className="pay-field-label">Select Your Bank</label>
+              <label className="pay-field-label">Select your bank</label>
               <select value={bank} onChange={e => setBank(e.target.value)}>
                 {BANKS.map(b => <option key={b}>{b}</option>)}
               </select>
             </>)}
             {mode === 'wallet' && (<>
-              <label className="pay-field-label">Choose Wallet</label>
+              <label className="pay-field-label">Choose wallet</label>
               <div className="wallet-grid">
                 {WALLETS.map(w => (
                   <button key={w} className={'wallet-btn' + (wallet === w ? ' wallet-active' : '')}

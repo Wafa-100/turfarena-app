@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import { prettyDate, formatDateTime } from '../utils/slots'
 import { fetchBookingEmail } from '../utils/api'
+import Icon from './Icon'
 
-/* ── QR pattern generated from the booking id ── */
+/* QR pattern generated from the booking id */
 function MockQR({ value, dim }) {
   const n = 17
   const seed = [...(value || 'demo')].reduce((a, c, i) => a * 31 + c.charCodeAt(0) * (i + 1), 7)
   const cells = Array.from({ length: n * n }, (_, i) => {
     const r = Math.floor(i / n), c = i % n
-    if (r < 5 && c < 5)    { const m = Math.max(Math.abs(r-2), Math.abs(c-2));       return m !== 1 }
-    if (r < 5 && c >= n-5) { const m = Math.max(Math.abs(r-2), Math.abs(c-(n-3)));   return m !== 1 }
-    if (r >= n-5 && c < 5) { const m = Math.max(Math.abs(r-(n-3)), Math.abs(c-2));   return m !== 1 }
+    if (r < 5 && c < 5)    { const m = Math.max(Math.abs(r - 2), Math.abs(c - 2));       return m !== 1 }
+    if (r < 5 && c >= n-5) { const m = Math.max(Math.abs(r - 2), Math.abs(c - (n - 3))); return m !== 1 }
+    if (r >= n-5 && c < 5) { const m = Math.max(Math.abs(r - (n - 3)), Math.abs(c - 2)); return m !== 1 }
     return ((seed * (i + 1) * 997 + i * 137) % 100) < 52
   })
   return (
@@ -22,14 +23,6 @@ function MockQR({ value, dim }) {
   )
 }
 
-/*
-  props:
-    bookings  – array of booking docs paid for together
-    payment   – the payment doc
-    email     – optional; fetched automatically if not passed
-    status    – 'Confirmed' | 'Completed' | 'Cancelled'
-    refund    – optional refund doc (shown when cancelled)
-*/
 export default function BookingTicket({ bookings, payment, email: emailProp, status, refund }) {
   const [email, setEmail] = useState(emailProp || null)
   const [showEmail, setShowEmail] = useState(false)
@@ -59,7 +52,9 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
       {cancelled && <div className="ticket-stamp">CANCELLED</div>}
 
       <div className="ticket-turf-name">{first.turf?.name || 'Turf'}</div>
-      <p className="ticket-turf-city">📍 {first.turf?.city}</p>
+      <p className="ticket-turf-city">
+        <Icon name="pin" size={13} /> {first.turf?.city}
+      </p>
 
       <div className="ticket-divider"><span /><span className="ticket-scissors">✂</span><span /></div>
 
@@ -72,7 +67,7 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
         <div className="ticket-datetime-block">
           <p className="ticket-datetime-label">{multi ? 'DURATION' : 'TIME SLOT'}</p>
           <p className="ticket-datetime-value time-value">
-            {multi ? `${bookings.length} Hours` : first.slot}
+            {multi ? `${bookings.length} hours` : first.slot}
           </p>
         </div>
       </div>
@@ -101,10 +96,10 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
           <span className="ticket-id">{String(first._id).slice(-10).toUpperCase()}</span>
         </div>
         {multi && (
-          <div className="ticket-detail-row"><span>Hours Booked</span><span>{bookings.length}</span></div>
+          <div className="ticket-detail-row"><span>Hours booked</span><span>{bookings.length}</span></div>
         )}
         <div className="ticket-detail-row">
-          <span>{cancelled ? 'Amount' : 'Total Paid'}</span>
+          <span>{cancelled ? 'Amount' : 'Total paid'}</span>
           <span className="ticket-amount">₹{total.toLocaleString('en-IN')}</span>
         </div>
         <div className="ticket-detail-row"><span>Payment</span><span>{payment?.method || '—'}</span></div>
@@ -112,7 +107,7 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
           <span>Payment ID</span><span className="ticket-mono">{payment?.paymentId || '—'}</span>
         </div>
         <div className="ticket-detail-row">
-          <span>Booked At</span><span>{formatDateTime(first.createdAt)}</span>
+          <span>Booked at</span><span>{formatDateTime(first.createdAt)}</span>
         </div>
         <div className="ticket-detail-row">
           <span>Status</span>
@@ -123,15 +118,14 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
         </div>
       </div>
 
-      {/* Refund receipt, shown for cancelled bookings */}
       {cancelled && refund && (
         <>
           <div className="ticket-divider"><span /><span /></div>
           <div className="refund-receipt">
             <div className="refund-receipt-head">
-              <span className="refund-receipt-icon">↩</span>
+              <span className="refund-receipt-icon"><Icon name="undo" size={17} /></span>
               <div>
-                <p className="refund-receipt-title">Refund Receipt</p>
+                <p className="refund-receipt-title">Refund receipt</p>
                 <p className="refund-receipt-sub">{refund.status}</p>
               </div>
               <span className="refund-receipt-amt">₹{refund.amount?.toLocaleString('en-IN')}</span>
@@ -141,7 +135,7 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
                 <span>Refund ID</span><span className="ticket-mono">{refund.refundId}</span>
               </div>
               <div className="ticket-detail-row">
-                <span>Refund To</span><span>{refund.refundMethod}</span>
+                <span>Refund to</span><span>{refund.refundMethod}</span>
               </div>
               {refund.refundDetails && (
                 <div className="ticket-detail-row">
@@ -153,7 +147,7 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
               </div>
               {refund.expectedBy && (
                 <div className="ticket-detail-row">
-                  <span>Expected By</span><span>{refund.expectedBy}</span>
+                  <span>Expected by</span><span>{refund.expectedBy}</span>
                 </div>
               )}
             </div>
@@ -166,14 +160,15 @@ export default function BookingTicket({ bookings, payment, email: emailProp, sta
       <div className="ticket-qr-section">
         <MockQR value={String(first._id)} dim={cancelled} />
         <p className="ticket-qr-label">
-          {cancelled ? 'This Pass Is No Longer Valid' : 'Scan At Venue Entrance'}
+          {cancelled ? 'This pass is no longer valid' : 'Scan at venue entrance'}
         </p>
       </div>
 
       {email && (
         <>
           <button className="btn-email-toggle" onClick={() => setShowEmail(v => !v)}>
-            {showEmail ? 'Hide' : 'View'} Confirmation Email
+            <Icon name="mail" size={15} />
+            {showEmail ? 'Hide' : 'View'} confirmation email
           </button>
           {showEmail && (
             <div className="email-card" style={{ marginTop: 10 }}>

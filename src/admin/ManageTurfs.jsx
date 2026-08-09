@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminGetTurfs, adminUpdateTurf, adminDeleteTurf } from '../utils/api'
+import Icon from '../components/Icon'
 
 export default function ManageTurfs() {
   const [turfs, setTurfs] = useState([])
@@ -66,16 +67,21 @@ export default function ManageTurfs() {
                 <td>{t.sport}</td>
                 <td>{t.city}</td>
                 <td>₹{t.price}</td>
-                <td>★ {t.rating}</td>
+                <td>
+                  <span className="admin-rating">
+                    <Icon name="star" size={12} filled /> {t.rating}
+                  </span>
+                </td>
                 <td>
                   <span className="a-badge a-badge-blue">
-                    {(t.photos?.length || 0)} Photo{t.photos?.length !== 1 ? 's' : ''}
+                    <Icon name="camera" size={11} />
+                    {t.photos?.length || 0}
                   </span>
                 </td>
                 <td>
                   {t.lat && t.lng
-                    ? <span className="a-badge a-badge-green">📍 Set</span>
-                    : <span className="a-badge a-badge-red">No Map</span>}
+                    ? <span className="a-badge a-badge-green"><Icon name="pin" size={11} /> Set</span>
+                    : <span className="a-badge a-badge-red"><Icon name="close" size={11} /> None</span>}
                 </td>
                 <td>
                   <button className="a-btn a-btn-edit" onClick={() => setEditTurf({ ...t })}>Edit</button>

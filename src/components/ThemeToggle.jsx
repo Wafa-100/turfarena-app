@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { getStoredTheme, applyTheme, resolveTheme, watchSystemTheme } from '../utils/theme'
+import Icon from './Icon'
 
 const OPTIONS = [
-  { id: 'light',  label: 'Light',  icon: '☀️', sub: 'Bright And Clean' },
-  { id: 'dark',   label: 'Dark',   icon: '🌙', sub: 'Easier At Night' },
-  { id: 'system', label: 'System', icon: '⚙️', sub: 'Match My Device' }
+  { id: 'light',  label: 'Light',  icon: 'sun',     sub: 'Bright and clean' },
+  { id: 'dark',   label: 'Dark',   icon: 'moon',    sub: 'Easier at night' },
+  { id: 'system', label: 'System', icon: 'monitor', sub: 'Match my device' }
 ]
 
 export default function ThemeToggle() {
@@ -27,16 +28,18 @@ export default function ThemeToggle() {
             className={'tt-option' + (choice === o.id ? ' tt-option-on' : '')}
             onClick={() => pick(o.id)}
           >
-            <span className="tt-icon">{o.icon}</span>
+            <span className="tt-icon"><Icon name={o.icon} size={21} /></span>
             <span className="tt-label">{o.label}</span>
             <span className="tt-sub">{o.sub}</span>
-            {choice === o.id && <span className="tt-check">✓</span>}
+            {choice === o.id && (
+              <span className="tt-check"><Icon name="check" size={13} /></span>
+            )}
           </button>
         ))}
       </div>
       {choice === 'system' && (
         <p className="tt-note">
-          Currently Showing <b>{resolved}</b>, Following Your Device Setting.
+          Currently showing <b>{resolved}</b>, following your device setting.
         </p>
       )}
     </div>

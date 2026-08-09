@@ -1,176 +1,140 @@
 import { useState } from 'react'
+import Icon from '../components/Icon'
+
+/* Swap these for your own photos in public/onboarding/ */
+const PHOTOS = [
+  '/onboarding/turf-1.jpg',
+  '/onboarding/turf-2.jpg',
+  '/onboarding/turf-3.jpg'
+]
+const FALLBACK = [
+  'https://picsum.photos/seed/turfnight/1000/1400',
+  'https://picsum.photos/seed/turfplay/1000/1400',
+  'https://picsum.photos/seed/turfwide/1000/1400'
+]
 
 const SLIDES = [
   {
-    // ── SLIDE 1: The problem this app solves ──
-    bg: 'linear-gradient(165deg, #062B16 0%, #0A5C34 55%, #00A651 100%)',
-    image: 'https://picsum.photos/seed/turfpitch/800/600',
-    tag: 'WELCOME TO TURF ARENA',
-    title: 'Book A Ground\nWithout The Hassle',
-    body: 'No More Calling Five Numbers To Find Out A Slot Is Already Taken. See What Is Actually Free, Right Now, And Lock It In.',
-    highlights: [
-      { icon: '🕐', text: 'Live Slot Availability' },
-      { icon: '📍', text: 'Grounds Near You On The Map' }
-    ],
-    btn: 'Explore',
-    btnStyle: { background: '#FFFFFF', color: '#0A5C34' },
-    accent: '#34D67F'
+    tint: '#062B16',
+    eyebrow: 'TurfArena',
+    title: 'Every ground\nin your city',
+    body: 'Stop calling five numbers to find one free slot. See what is actually available, right now, and lock it in.',
+    chip: { icon: 'bolt', text: 'Live availability' },
+    cta: 'Explore'
   },
   {
-    // ── SLIDE 2: What you actually get ──
-    bg: 'linear-gradient(165deg, #0B1F3A 0%, #123A6B 55%, #1F6FD4 100%)',
-    image: null,
-    tag: 'EVERYTHING IN ONE ARENA',
-    title: 'Compare, Book,\nAnd You Are Done',
-    body: 'Every Ground Shows Its Real Price, Photos, Timings And Facilities Before You Commit. Pick Your Hour And Pay However You Like.',
-    cards: [
-      { icon: '🏟️', title: 'Full Turf Details', sub: 'Photos, Surface, Size, Floodlights, Parking' },
-      { icon: '💳', title: 'Pay Your Way', sub: 'UPI, Card, Net Banking Or Wallet' },
-      { icon: '📩', title: 'Instant Confirmation', sub: 'Booking ID And Receipt Sent To You' },
-      { icon: '↩️', title: 'Free Cancellation', sub: 'Plans Change — Get Your Refund Back' }
+    tint: '#0B1F3A',
+    eyebrow: 'How it works',
+    title: 'Pick your hours,\npay, and play',
+    body: 'Real prices, real photos, real facilities — all before you commit a rupee.',
+    points: [
+      { icon: 'clock',  title: 'Book by the hour', sub: 'Select as many slots as you need' },
+      { icon: 'card',   title: 'Pay your way',     sub: 'UPI, card, net banking or wallet' },
+      { icon: 'refresh',title: 'Free cancellation',sub: 'Plans change — get your money back' }
     ],
-    btn: 'Next',
-    btnStyle: { background: '#FFFFFF', color: '#123A6B' },
-    accent: '#5EA8FF'
+    cta: 'Next'
   },
   {
-    // ── SLIDE 3: Personal invitation ──
-    bg: 'linear-gradient(165deg, #1A0B2E 0%, #3D1E6D 55%, #7C3AED 100%)',
-    image: null,
-    tag: 'READY WHEN YOU ARE',
-    title: 'Your Next Game\nStarts Here',
-    body: 'Create Your Account In Under A Minute. Browse Grounds Free — You Only Pay When You Book A Slot You Actually Want.',
-    checklist: [
-      'Free To Sign Up, No Card Needed',
-      'Own A Turf? List It And Start Earning',
-      'All Your Bookings Saved In One Place'
+    tint: '#12100A',
+    eyebrow: 'Ready when you are',
+    title: 'Your next game\nstarts here',
+    body: 'Create an account in under a minute. Browsing is free — you only pay for the hours you book.',
+    checks: [
+      'Free to join, no card needed',
+      'Own a ground? List it and start earning',
+      'Every booking saved in one place'
     ],
-    btn: 'Get Started',
-    btnStyle: { background: 'linear-gradient(135deg, #9F67FF, #7C3AED)', color: '#FFFFFF' },
-    accent: '#C4A0FF'
+    cta: 'Get started'
   }
 ]
 
 export default function Onboarding({ onFinish }) {
   const [i, setI] = useState(0)
+  const [broken, setBroken] = useState({})
   const s = SLIDES[i]
-  const isLast = i === SLIDES.length - 1
-
-  function next() {
-    if (!isLast) setI(i + 1)
-    else onFinish()
-  }
+  const last = i === SLIDES.length - 1
+  const src = broken[i] ? FALLBACK[i] : PHOTOS[i]
 
   return (
-    <div className="ob2" style={{ background: s.bg }}>
+    <div className="ob3">
 
-      {/* Soft glow decorations */}
-      <div className="ob2-glow ob2-glow-a" style={{ background: s.accent }} />
-      <div className="ob2-glow ob2-glow-b" style={{ background: s.accent }} />
+      {/* ── Photo layer ── */}
+      <div className="ob3-media">
+        <img
+          key={i}
+          src={src}
+          alt=""
+          className="ob3-photo"
+          onError={() => setBroken(b => ({ ...b, [i]: true }))}
+        />
+        <div className="ob3-tint" style={{ background: s.tint }} />
+        <div className="ob3-scrim" />
+      </div>
 
-      {/* Top bar: logo + skip */}
-      <header className="ob2-top">
-        <div className="ob2-logo">
-          <span className="ob2-logo-mark">⚽</span>
-          <span className="ob2-logo-text">TURF ARENA</span>
-        </div>
-        {!isLast && (
-          <button className="ob2-skip" onClick={onFinish}>Skip</button>
-        )}
+      {/* ── Top bar ── */}
+      <header className="ob3-top">
+        <span className="ob3-brand">TurfArena</span>
+        {!last && <button className="ob3-skip" onClick={onFinish}>Skip</button>}
       </header>
 
-      {/* Body */}
-      <div className="ob2-body" key={i}>
+      {/* ── Content ── */}
+      <div className="ob3-content" key={i}>
 
-        {/* Slide 1 — real photo in a phone-like frame */}
-        {s.image && (
-          <div className="ob2-photo-frame">
-            <img src={s.image} alt="Sports Turf" className="ob2-photo" />
-            <div className="ob2-photo-overlay" />
-            <div className="ob2-photo-chip">
-              <span className="ob2-live-dot" />
-              There Are Slots Free Today
-            </div>
-          </div>
+        {s.chip && (
+          <span className="ob3-chip">
+            <span className="ob3-chip-dot" />
+            <Icon name={s.chip.icon} size={13} />
+            {s.chip.text}
+          </span>
         )}
 
-        {/* Slide 2 — feature cards */}
-        {s.cards && (
-          <div className="ob2-cards">
-            {s.cards.map((c, n) => (
-              <div className="ob2-card" key={n} style={{ animationDelay: `${n * 70}ms` }}>
-                <span className="ob2-card-icon">{c.icon}</span>
-                <div className="ob2-card-text">
-                  <p className="ob2-card-title">{c.title}</p>
-                  <p className="ob2-card-sub">{c.sub}</p>
+        <p className="ob3-eyebrow">{s.eyebrow}</p>
+        <h1 className="ob3-title">{s.title}</h1>
+        <p className="ob3-body">{s.body}</p>
+
+        {s.points && (
+          <div className="ob3-points">
+            {s.points.map((p, n) => (
+              <div className="ob3-point" key={p.title} style={{ animationDelay: `${n * 80}ms` }}>
+                <span className="ob3-point-icon"><Icon name={p.icon} size={17} /></span>
+                <div>
+                  <p className="ob3-point-title">{p.title}</p>
+                  <p className="ob3-point-sub">{p.sub}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Slide 3 — illustration */}
-        {isLast && (
-          <div className="ob2-final-art">
-            <div className="ob2-ring ob2-ring-1" />
-            <div className="ob2-ring ob2-ring-2" />
-            <span className="ob2-final-emoji">🏆</span>
-          </div>
-        )}
-
-        {/* Text block */}
-        <div className="ob2-text">
-          <p className="ob2-tag" style={{ color: s.accent }}>{s.tag}</p>
-          <h1 className="ob2-title">{s.title}</h1>
-          <p className="ob2-desc">{s.body}</p>
-        </div>
-
-        {/* Slide 1 highlights */}
-        {s.highlights && (
-          <div className="ob2-highlights">
-            {s.highlights.map((h, n) => (
-              <div className="ob2-highlight" key={n}>
-                <span className="ob2-highlight-icon">{h.icon}</span>
-                <span>{h.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Slide 3 checklist */}
-        {s.checklist && (
-          <div className="ob2-checklist">
-            {s.checklist.map((c, n) => (
-              <div className="ob2-check-row" key={n} style={{ animationDelay: `${n * 90}ms` }}>
-                <span className="ob2-check-mark" style={{ background: s.accent }}>✓</span>
-                <span>{c}</span>
+        {s.checks && (
+          <div className="ob3-checks">
+            {s.checks.map((c, n) => (
+              <div className="ob3-check" key={c} style={{ animationDelay: `${n * 90}ms` }}>
+                <span className="ob3-check-mark"><Icon name="check" size={12} /></span>
+                {c}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Footer: progress + button */}
-      <footer className="ob2-footer">
-        <div className="ob2-progress">
+      {/* ── Footer ── */}
+      <footer className="ob3-foot">
+        <div className="ob3-bars">
           {SLIDES.map((_, n) => (
-            <button
-              key={n}
-              className={'ob2-bar' + (n === i ? ' ob2-bar-on' : '') + (n < i ? ' ob2-bar-done' : '')}
+            <button key={n}
+              className={'ob3-bar' + (n === i ? ' ob3-bar-on' : n < i ? ' ob3-bar-done' : '')}
               onClick={() => setI(n)}
-              aria-label={`Slide ${n + 1}`}
-            />
+              aria-label={`Slide ${n + 1}`} />
           ))}
         </div>
 
-        <button className="ob2-cta" style={s.btnStyle} onClick={next}>
-          {s.btn}
-          {!isLast && <span className="ob2-cta-arrow">→</span>}
+        <button className="ob3-cta" onClick={() => last ? onFinish() : setI(i + 1)}>
+          {s.cta}
+          {!last && <Icon name="arrow" size={18} />}
         </button>
 
-        {isLast && (
-          <p className="ob2-footnote">By Continuing You Agree To Our Terms Of Use</p>
-        )}
+        {last && <p className="ob3-terms">By continuing you agree to our terms of use</p>}
       </footer>
     </div>
   )

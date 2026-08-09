@@ -1,182 +1,237 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { purchasePlan } from '../utils/api'
+import Icon from '../components/Icon'
 
 const PLANS = [
   {
     id: 'monthly',
-    label: 'Monthly Plan',
-    price: 500,
-    duration: '30 days',
-    turfLimit: 3,
-    icon: '📅',
-    color: '#3b82f6',
-    features: ['Add Up To 3 Turfs', 'Active For 30 Days', 'Turfs Hidden After Expiry', 'Renew Anytime']
+    name: 'Monthly',
+    price: 2500,
+    perMonth: 2500,
+    period: 'per month',
+    turfs: 3,
+    days: 30,
+    blurb: 'Good for a single ground or a first listing.',
+    features: [
+      'List up to 3 grounds',
+      'Unlimited bookings each month',
+      'Edit prices and photos anytime',
+      'Cancel or renew whenever you like'
+    ]
   },
   {
     id: 'yearly',
-    label: 'Yearly Plan',
-    price: 4500,
-    duration: '365 days',
-    turfLimit: 6,
-    icon: '⭐',
-    color: '#f59e0b',
-    features: ['Add Up To 6 Turfs', 'Active For 365 Days', 'Best Value — Save 17%', 'Priority Listing'],
-    popular: true
+    name: 'Yearly',
+    price: 25000,
+    perMonth: 2084,
+    period: 'per year',
+    turfs: 6,
+    days: 365,
+    recommended: true,
+    saving: 5000,
+    blurb: 'For owners running multiple grounds year-round.',
+    features: [
+      'List up to 6 grounds',
+      'Unlimited bookings all year',
+      'Priority placement in search',
+      'Two months free versus monthly'
+    ]
   }
 ]
 
+const MODES = [
+  { id: 'card',       label: 'Card',        icon: 'card' },
+  { id: 'upi',        label: 'UPI',         icon: 'phone' },
+  { id: 'netbanking', label: 'Net Banking', icon: 'bank' },
+  { id: 'wallet',     label: 'Wallet',      icon: 'wallet' }
+]
 const BANKS = ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Bank']
 const WALLETS = ['Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay']
 
 export default function PlanPurchase({ user }) {
   const navigate = useNavigate()
-  const [selected, setSelected] = useState(null)
+  const [picked, setPicked] = useState(PLANS[1])
   const [showPay, setShowPay] = useState(false)
-  const [payMode, setPayMode] = useState('card')
-  const [cardNumber, setCardNumber] = useState('')
-  const [expiry, setExpiry] = useState('')
-  const [cvv, setCvv] = useState('')
+  const [mode, setMode] = useState('card')
+  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242')
+  const [expiry, setExpiry] = useState('12/29')
+  const [cvv, setCvv] = useState('123')
   const [upiId, setUpiId] = useState('')
   const [bank, setBank] = useState(BANKS[0])
   const [wallet, setWallet] = useState(WALLETS[0])
-  const [processing, setProcessing] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(null)
+  const [done, setDone] = useState(null)
 
-  async function handlePay() {
-    setProcessing(true)
-    setError('')
+  async function pay() {
+    setBusy(true); setError('')
     setTimeout(async () => {
       try {
-        const result = await purchasePlan({
-          userId: user.id,
-          planType: selected.id,
-          paymentMethod: payMode,
-          cardNumber, upiId, bank, wallet
+        const r = await purchasePlan({
+          userId: user.id, planType: picked.id,
+          paymentMethod: mode, cardNumber, upiId, bank, wallet
         })
-        setSuccess(result)
-        setShowPay(false)
-      } catch (err) {
-        setError(err.message)
-        setProcessing(false)
-      }
-    }, 1800)
+        setDone(r); setShowPay(false)
+      } catch (e) { setError(e.message); setBusy(false) }
+    }, 1600)
   }
 
-  if (success) {
-    const exp = new Date(success.expiryDate).toLocaleDateString('en-IN', {
+  /* ── Success ── */
+  if (done) {
+    const exp = new Date(done.expiryDate).toLocaleDateString('en-IN', {
       day: 'numeric', month: 'long', year: 'numeric'
     })
     return (
-      <div className="page center-page">
-        <div className="success-tick">✓</div>
-        <h1>Plan Activated!</h1>
-        <p className="muted">You Can Now Add Turfs To Turf Arena.</p>
-        <div className="plan-success-card">
-          <p className="plan-success-type">
-            {success.plan.planType === 'monthly' ? '📅 Monthly Plan' : '⭐ Yearly Plan'}
-          </p>
-          <ul className="detail-list">
-            <li><span>Turfs Allowed</span><b>{success.plan.turfLimit}</b></li>
-            <li><span>Expires On</span><b>{exp}</b></li>
-            <li><span>Amount Paid</span><b>₹{success.plan.price}</b></li>
-            <li><span>Payment ID</span><b>{success.plan.paymentId}</b></li>
-          </ul>
+      <div className="pp-done">
+        <div className="pp-done-mark"><Icon name="check" size={30} /></div>
+        <h1 className="pp-done-title">You're all set</h1>
+        <p className="pp-done-sub">Your {done.plan.planType} plan is active.</p>
+
+        <div className="pp-done-card">
+          <div className="pp-done-row">
+            <span>Plan</span>
+            <b>{done.plan.planType === 'yearly' ? 'Yearly' : 'Monthly'}</b>
+          </div>
+          <div className="pp-done-row"><span>Grounds allowed</span><b>{done.plan.turfLimit}</b></div>
+          <div className="pp-done-row"><span>Active until</span><b>{exp}</b></div>
+          <div className="pp-done-row"><span>Paid</span><b>₹{done.plan.price.toLocaleString('en-IN')}</b></div>
+          <div className="pp-done-row">
+            <span>Reference</span><b className="mono">{done.plan.paymentId}</b>
+          </div>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/add-turf')}>
-          Add Your First Turf →
+
+        <button className="pp-cta" onClick={() => navigate('/add-turf')}>
+          List your first ground <Icon name="arrow" size={17} />
         </button>
-        <button className="btn-ghost" onClick={() => navigate('/')}>Back To Home</button>
+        <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
       </div>
     )
   }
 
   return (
-    <div className="page">
-      <header className="page-head">
-        <h1>Choose A Plan</h1>
-        <p className="muted">Purchase A Plan To Start Listing Your Turfs</p>
+    <div className="pp-page">
+      <header className="pp-head">
+        <p className="pp-eyebrow">For ground owners</p>
+        <h1 className="pp-title">Put your ground<br />in front of players</h1>
+        <p className="pp-sub">
+          Choose a plan to start listing. Every plan includes unlimited bookings —
+          you keep 100% of what players pay.
+        </p>
       </header>
 
-      {/* Plan cards */}
-      {PLANS.map(plan => (
-        <div key={plan.id}
-          className={'plan-card' + (selected?.id === plan.id ? ' plan-card-selected' : '')}
-          style={{ borderColor: selected?.id === plan.id ? plan.color : undefined }}
-          onClick={() => setSelected(plan)}>
-          {plan.popular && <div className="plan-popular">BEST VALUE</div>}
-          <div className="plan-card-top">
-            <span className="plan-icon">{plan.icon}</span>
-            <div>
-              <h3>{plan.label}</h3>
-              <p className="muted small">{plan.duration} · {plan.turfLimit} Turfs</p>
-            </div>
-            <div className="plan-price-badge" style={{ background: plan.color }}>
-              ₹{plan.price.toLocaleString('en-IN')}
-            </div>
-          </div>
-          <ul className="plan-features">
-            {plan.features.map(f => (
-              <li key={f}><span className="plan-check">✓</span> {f}</li>
-            ))}
-          </ul>
-          <div className={'plan-select-ring' + (selected?.id === plan.id ? ' plan-select-ring-active' : '')}
-            style={{ borderColor: plan.color, background: selected?.id === plan.id ? plan.color : undefined }}>
-            {selected?.id === plan.id && '✓'}
-          </div>
-        </div>
-      ))}
+      <div className="pp-plans">
+        {PLANS.map(p => {
+          const on = picked.id === p.id
+          return (
+            <button key={p.id}
+              className={'pp-plan' + (on ? ' pp-plan-on' : '') + (p.recommended ? ' pp-plan-rec' : '')}
+              onClick={() => setPicked(p)}>
+
+              {p.recommended && <span className="pp-tag">Most popular</span>}
+
+              <div className="pp-plan-top">
+                <div>
+                  <p className="pp-plan-name">{p.name}</p>
+                  <p className="pp-plan-blurb">{p.blurb}</p>
+                </div>
+                <span className={'pp-radio' + (on ? ' pp-radio-on' : '')}>
+                  {on && <Icon name="check" size={13} />}
+                </span>
+              </div>
+
+              <div className="pp-price">
+                <span className="pp-price-cur">₹</span>
+                <span className="pp-price-num">{p.price.toLocaleString('en-IN')}</span>
+                <span className="pp-price-per">{p.period}</span>
+              </div>
+
+              {p.saving ? (
+                <p className="pp-saving">
+                  Works out to ₹{p.perMonth.toLocaleString('en-IN')}/month
+                  <b> — save ₹{p.saving.toLocaleString('en-IN')}</b>
+                </p>
+              ) : (
+                <p className="pp-saving pp-saving-plain">Billed monthly, cancel anytime</p>
+              )}
+
+              <ul className="pp-features">
+                {p.features.map(f => (
+                  <li key={f}>
+                    <span className="pp-check"><Icon name="check" size={11} /></span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          )
+        })}
+      </div>
 
       {error && <p className="error">{error}</p>}
 
-      <button className="btn-primary" disabled={!selected}
-        onClick={() => { setError(''); setShowPay(true) }}>
-        {selected ? `Buy ${selected.label} — ₹${selected.price.toLocaleString('en-IN')}` : 'Select A Plan'}
-      </button>
+      <div className="pp-foot">
+        <p className="pp-foot-note">
+          <Icon name="shield" size={14} /> Demo payment — no money is charged
+        </p>
+        <button className="pp-cta" onClick={() => { setError(''); setShowPay(true) }}>
+          Continue with {picked.name} — ₹{picked.price.toLocaleString('en-IN')}
+        </button>
+      </div>
 
-      {/* Demo payment overlay */}
-      {showPay && selected && (
-        <div className="overlay">
-          <div className="pay-card">
-            <h2 style={{ textAlign: 'center' }}>Online Payment</h2>
-            <p className="pay-amount">₹{selected.price.toLocaleString('en-IN')}</p>
-            <p className="muted small" style={{ textAlign: 'center' }}>{selected.label} · {selected.duration}</p>
-            <div className="demo-note">
-              🔒 Online Payment — All Payments Are Secured.
+      {/* ── Payment sheet ── */}
+      {showPay && (
+        <div className="overlay" onClick={() => !busy && setShowPay(false)}>
+          <div className="pay-card" onClick={e => e.stopPropagation()}>
+            <div className="pay-head">
+              <h2>Confirm your plan</h2>
+              <button className="pay-close" disabled={busy} onClick={() => setShowPay(false)}>✕</button>
             </div>
 
-            <div className="pay-mode-grid">
-              {[{id:'card',l:'Card',i:'💳'},{id:'upi',l:'UPI',i:'📱'},{id:'netbanking',l:'Net Banking',i:'🏦'},{id:'wallet',l:'Wallet',i:'👛'}].map(m => (
-                <button key={m.id} className={'pay-mode-btn' + (payMode === m.id ? ' pay-mode-active' : '')}
-                  onClick={() => setPayMode(m.id)}>
-                  <span style={{ fontSize: 18 }}>{m.i}</span>
-                  <p style={{ fontSize: 11, marginTop: 3 }}>{m.l}</p>
+            <div className="pp-pay-summary">
+              <div className="pp-pay-row">
+                <span>{picked.name} plan</span>
+                <b>₹{picked.price.toLocaleString('en-IN')}</b>
+              </div>
+              <div className="pp-pay-row pp-pay-muted">
+                <span>{picked.turfs} grounds · {picked.days} days</span>
+                <span>incl. all taxes</span>
+              </div>
+            </div>
+
+            <p className="pay-mode-label">Payment method</p>
+            <div className="pp-modes">
+              {MODES.map(m => (
+                <button key={m.id}
+                  className={'pp-mode' + (mode === m.id ? ' pp-mode-on' : '')}
+                  onClick={() => setMode(m.id)}>
+                  <Icon name={m.icon} size={19} className="pp-mode-icon" />
+                  <span>{m.label}</span>
                 </button>
               ))}
             </div>
 
-            {payMode === 'card' && (
-              <>
-                <label className="small"><b>Card Number</b></label>
-                <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} />
-                <div className="two-col">
-                  <div><label className="small"><b>Expiry</b></label><input value={expiry} onChange={e => setExpiry(e.target.value)} /></div>
-                  <div><label className="small"><b>CVV</b></label><input value={cvv} onChange={e => setCvv(e.target.value)} /></div>
-                </div>
-              </>
-            )}
-            {payMode === 'upi' && (
-              <><label className="small"><b>UPI ID</b></label>
-              <input value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="name@paytm" /></>
-            )}
-            {payMode === 'netbanking' && (
-              <><label className="small"><b>Select Bank</b></label>
+            {mode === 'card' && (<>
+              <label className="pay-field-label">Card number</label>
+              <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} maxLength={19} />
+              <div className="two-col">
+                <div><label className="pay-field-label">Expiry</label>
+                  <input value={expiry} onChange={e => setExpiry(e.target.value)} /></div>
+                <div><label className="pay-field-label">CVV</label>
+                  <input value={cvv} onChange={e => setCvv(e.target.value)} maxLength={4} /></div>
+              </div>
+            </>)}
+            {mode === 'upi' && (<>
+              <label className="pay-field-label">UPI ID</label>
+              <input value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="name@bank" />
+            </>)}
+            {mode === 'netbanking' && (<>
+              <label className="pay-field-label">Bank</label>
               <select value={bank} onChange={e => setBank(e.target.value)}>
                 {BANKS.map(b => <option key={b}>{b}</option>)}
-              </select></>
-            )}
-            {payMode === 'wallet' && (
+              </select>
+            </>)}
+            {mode === 'wallet' && (
               <div className="wallet-grid">
                 {WALLETS.map(w => (
                   <button key={w} className={'wallet-btn' + (wallet === w ? ' wallet-active' : '')}
@@ -186,10 +241,10 @@ export default function PlanPurchase({ user }) {
             )}
 
             {error && <p className="error">{error}</p>}
-            <button className="btn-primary" disabled={processing} onClick={handlePay}>
-              {processing ? 'Activating Plan…' : `Pay ₹${selected.price.toLocaleString('en-IN')}`}
+
+            <button className="pp-cta" disabled={busy} onClick={pay} style={{ marginTop: 16 }}>
+              {busy ? 'Activating…' : `Pay ₹${picked.price.toLocaleString('en-IN')}`}
             </button>
-            <button className="btn-ghost" disabled={processing} onClick={() => setShowPay(false)}>Cancel</button>
           </div>
         </div>
       )}

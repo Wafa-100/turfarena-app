@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { adminStats } from '../utils/api'
 import { formatDateTime } from '../utils/slots'
+import Icon from '../components/Icon'
 
 export default function Dashboard() {
   const [data, setData] = useState(null)
@@ -14,13 +15,13 @@ export default function Dashboard() {
   if (!data) return <div className="admin-page"><p className="muted">Loading…</p></div>
 
   const stats = [
-    { label: 'Total Users', value: data.totalUsers, icon: '👥', color: '#3b82f6' },
-    { label: 'Turfs Listed', value: data.totalTurfs, icon: '🏟️', color: '#16a34a' },
-    { label: 'Confirmed Bookings', value: data.totalBookings, icon: '📅', color: '#8b5cf6' },
-    { label: 'Total Revenue', value: `₹${data.totalRevenue}`, icon: '💰', color: '#f59e0b' },
-    { label: 'Cancellations', value: data.totalCancelled, icon: '❌', color: '#ef4444' },
-    { label: 'Refunds Issued', value: data.totalRefunds, icon: '↩️', color: '#06b6d4' },
-    { label: 'Messages', value: data.totalMessages, icon: '✉️', color: '#ec4899' }
+    { label: 'Total Users',        value: data.totalUsers,     icon: 'users',    color: 'var(--info)' },
+    { label: 'Grounds Listed',     value: data.totalTurfs,     icon: 'building', color: 'var(--brand)' },
+    { label: 'Confirmed Bookings', value: data.totalBookings,  icon: 'calendar', color: '#7C3AED' },
+    { label: 'Total Revenue',      value: `₹${data.totalRevenue?.toLocaleString('en-IN')}`, icon: 'rupee', color: 'var(--gold)' },
+    { label: 'Cancellations',      value: data.totalCancelled, icon: 'close',    color: 'var(--danger)' },
+    { label: 'Refunds Issued',     value: data.totalRefunds,   icon: 'undo',     color: '#06B6D4' },
+    { label: 'Messages',           value: data.totalMessages,  icon: 'chat',     color: '#EC4899' }
   ]
 
   return (
@@ -30,7 +31,9 @@ export default function Dashboard() {
       <div className="dash-grid">
         {stats.map(s => (
           <div key={s.label} className="dash-card" style={{ borderLeft: `4px solid ${s.color}` }}>
-            <span className="dash-icon">{s.icon}</span>
+            <span className="dash-icon" style={{ color: s.color }}>
+              <Icon name={s.icon} size={26} />
+            </span>
             <div>
               <p className="dash-value">{s.value}</p>
               <p className="dash-label">{s.label}</p>
@@ -44,7 +47,7 @@ export default function Dashboard() {
         <table className="admin-table">
           <thead>
             <tr>
-              <th>Turf</th><th>User</th><th>Date</th><th>Slot</th><th>Status</th><th>Booked At</th>
+              <th>Ground</th><th>User</th><th>Date</th><th>Slot</th><th>Status</th><th>Booked At</th>
             </tr>
           </thead>
           <tbody>
@@ -54,7 +57,11 @@ export default function Dashboard() {
                 <td>{b.user?.name || '—'}</td>
                 <td>{b.date}</td>
                 <td>{b.slot}</td>
-                <td><span className={'a-badge ' + (b.status === 'Confirmed' ? 'a-badge-green' : 'a-badge-red')}>{b.status}</span></td>
+                <td>
+                  <span className={'a-badge ' + (b.status === 'Confirmed' ? 'a-badge-green' : 'a-badge-red')}>
+                    {b.status}
+                  </span>
+                </td>
                 <td>{formatDateTime(b.createdAt)}</td>
               </tr>
             ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminGetUsers, adminUpdateUser, adminDeleteUser } from '../utils/api'
+import Icon from '../components/Icon'
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([])
@@ -44,7 +45,7 @@ export default function ManageUsers() {
         </h1>
         <div style={{ textAlign: 'right' }}>
           <button className="a-btn a-btn-edit" onClick={load} style={{ padding: '8px 16px' }}>
-            🔄 Refresh
+            <Icon name="refresh" size={13} /> Refresh
           </button>
           <p className="muted small" style={{ marginTop: 4 }}>
             Last Updated: {lastRefresh.toLocaleTimeString('en-IN')}

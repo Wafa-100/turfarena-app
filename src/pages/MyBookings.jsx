@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  fetchMyBookings, cancelBookingGroup, fetchRefundByPayment
-} from '../utils/api'
+import { fetchMyBookings, cancelBookingGroup, fetchRefundByPayment } from '../utils/api'
 import { prettyDate, todayIso } from '../utils/slots'
 import BookingTicket from '../components/BookingTicket'
+import Icon from '../components/Icon'
 
 const REFUND_METHODS = [
-  { id: 'original', label: 'Original Payment Method', sub: 'Back To How You Paid', icon: '↩️', needs: null },
-  { id: 'upi',      label: 'UPI',                     sub: 'Instant To Your UPI ID', icon: '📱', needs: 'UPI ID (e.g. name@paytm)' },
-  { id: 'bank',     label: 'Bank Account',            sub: '3–5 Working Days',       icon: '🏦', needs: 'Account Number' },
-  { id: 'wallet',   label: 'TurfArena Wallet',        sub: 'Instant, Use On Next Booking', icon: '👛', needs: null }
+  { id: 'original', label: 'Original payment method', sub: 'Back to how you paid',        icon: 'undo',   needs: null },
+  { id: 'upi',      label: 'UPI',                     sub: 'Instant to your UPI ID',      icon: 'phone',  needs: 'UPI ID (e.g. name@paytm)' },
+  { id: 'bank',     label: 'Bank account',            sub: '3–5 working days',            icon: 'bank',   needs: 'Account number' },
+  { id: 'wallet',   label: 'TurfArena wallet',        sub: 'Instant, use on next booking', icon: 'wallet', needs: null }
 ]
 
 /* Group bookings that were paid for together into one entry */
@@ -144,7 +143,7 @@ export default function MyBookings({ user }) {
       {!loading && active.list.length === 0 && (
         <div className="mb-empty">
           <div className="mb-empty-icon">
-            {tab === 'upcoming' ? '📅' : tab === 'past' ? '✅' : '↩️'}
+            <Icon name={tab === 'upcoming' ? 'calendar' : tab === 'past' ? 'check' : 'undo'} size={34} />
           </div>
           <p className="mb-empty-title">
             {tab === 'upcoming' ? 'No Upcoming Bookings'
@@ -185,8 +184,11 @@ export default function MyBookings({ user }) {
                   <p className="mb-turf">{g.first.turf?.name || 'Turf'}</p>
                   <p className="mb-city">{g.first.turf?.city}</p>
                   <p className="mb-time">
-                    🕐 {g.range}
-                    {g.count > 1 && <span className="mb-hours-pill">{g.count} Hours</span>}
+                    <Icon name="clock" size={13} />
+                    <span className="mb-range">{g.range}</span>
+                    {g.count > 1 && (
+                      <span className="mb-hours-pill">{g.count} hrs</span>
+                    )}
                   </p>
                 </div>
 
@@ -265,7 +267,7 @@ export default function MyBookings({ user }) {
                   <button key={m.id}
                     className={'rf-method' + (method === m.id ? ' rf-method-on' : '')}
                     onClick={() => { setMethod(m.id); setDetailsInput('') }}>
-                    <span className="rf-method-icon">{m.icon}</span>
+                    <span className="rf-method-icon"><Icon name={m.icon} size={19} /></span>
                     <div className="rf-method-text">
                       <p className="rf-method-label">{m.label}</p>
                       <p className="rf-method-sub">{m.sub}</p>
@@ -308,7 +310,7 @@ export default function MyBookings({ user }) {
         <div className="overlay" onClick={() => setReceipt(null)}>
           <div className="sheet sheet-short" onClick={e => e.stopPropagation()}>
             <div className="sheet-body" style={{ textAlign: 'center' }}>
-              <div className="rf-done-icon">↩</div>
+              <div className="rf-done-icon"><Icon name="undo" size={28} /></div>
               <h2 style={{ marginBottom: 4 }}>Refund Processed</h2>
               <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
                 Your Booking Is Cancelled And The Slots Are Free Again.

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createTurf, fetchPlanStatus } from '../utils/api'
 import { geocodeAddress, buildMapUrl } from '../utils/geocode'
+import Icon from '../components/Icon'
 
 export default function AddTurf({ user }) {
   const navigate = useNavigate()
@@ -97,46 +98,85 @@ export default function AddTurf({ user }) {
     )
   }
 
+// No plan yet
   if (!planInfo?.hasPlan) {
     return (
-      <div className="page center-page">
-        <div style={{ fontSize: 60, marginTop: 30 }}>🔒</div>
-        <h1 style={{ marginTop: 14 }}>Plan Required</h1>
-        <p className="muted" style={{ marginTop: 8, marginBottom: 20 }}>
-          You Need An Active Plan To List Your Turf On Turf Arena.
-        </p>
-        <div className="plan-success-card">
-          <p style={{ fontWeight: 700, marginBottom: 10 }}>Available Plans</p>
-          <ul className="detail-list">
-            <li><span>📅 Monthly</span><b>₹500 · 3 turfs · 30 days</b></li>
-            <li><span>⭐ Yearly</span><b>₹4500 · 6 turfs · 365 days</b></li>
-          </ul>
+      <div className="gate">
+        <div className="gate-mark">
+          <Icon name="lock" size={26} />
         </div>
-        <button className="btn-primary" onClick={() => navigate('/plan')}>
-          View Plans &amp; Purchase
+        <h1 className="gate-title">A plan is needed</h1>
+        <p className="gate-sub">
+          Listing a ground on TurfArena requires an active owner plan.
+          Choose one and you can publish straight away.
+        </p>
+
+        <div className="gate-card">
+          <p className="gate-card-label">Available plans</p>
+
+          <div className="gate-row">
+            <div>
+              <p className="gate-row-name">
+                <span className="a-badge a-badge-blue">
+                  <Icon name="calendar" size={11} /> Monthly
+                </span>
+              </p>
+              <p className="gate-row-meta">3 grounds · 30 days</p>
+            </div>
+            <span className="gate-row-price">₹2,500</span>
+          </div>
+
+          <div className="gate-row">
+            <div>
+              <p className="gate-row-name">
+                <span className="a-badge a-badge-yellow">
+                  <Icon name="star" size={11} filled /> Yearly
+                </span>
+                <span className="gate-badge">Best value</span>
+              </p>
+              <p className="gate-row-meta">6 grounds · 365 days</p>
+            </div>
+            <span className="gate-row-price">₹25,000</span>
+          </div>
+        </div>
+
+        <button className="pp-cta" onClick={() => navigate('/plan')}>
+          View plans <Icon name="arrow" size={17} />
         </button>
-        <button className="btn-ghost" onClick={() => navigate('/')}>
-          Back To Home
-        </button>
+        <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
       </div>
     )
   }
 
+  // Plan limit reached
   if (planInfo.turfsUsed >= planInfo.plan.turfLimit) {
     return (
-      <div className="page center-page">
-        <div style={{ fontSize: 60, marginTop: 30 }}>⚠️</div>
-        <h1 style={{ marginTop: 14 }}>Turf Limit Reached</h1>
-        <p className="muted" style={{ marginTop: 8, marginBottom: 20 }}>
-          Your {planInfo.plan.planType} Plan Allows {planInfo.plan.turfLimit} Turfs.
-          You Have Already Added {planInfo.turfsUsed}.
+      <div className="gate">
+        <div className="gate-mark gate-mark-warn">
+          <Icon name="alert" size={26} />
+        </div>
+        <h1 className="gate-title">You've used every slot</h1>
+        <p className="gate-sub">
+          Your {planInfo.plan.planType} plan covers {planInfo.plan.turfLimit} grounds,
+          and all {planInfo.turfsUsed} are live. Remove one, or upgrade for more room.
         </p>
-        <button className="btn-primary" onClick={() => navigate('/profile')}>
-          View My Turfs
+
+        <div className="gate-card">
+          <div className="gate-row">
+            <div>
+              <p className="gate-row-name">Grounds listed</p>
+              <p className="gate-row-meta">{planInfo.daysLeft} days left on this plan</p>
+            </div>
+            <span className="gate-row-price">
+              {planInfo.turfsUsed}/{planInfo.plan.turfLimit}
+            </span>
+          </div>
+        </div>
+
+        <button className="pp-cta" onClick={() => navigate('/profile')}>
+          Manage my grounds <Icon name="arrow" size={17} />
         </button>
-        <button className="btn-ghost" onClick={() => navigate('/')}>
-          Back To Home
-        </button>
+        <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
       </div>
     )
   }
@@ -152,16 +192,17 @@ export default function AddTurf({ user }) {
         <p className="muted">Fill Your Details — All Details Are Saved. </p>
       </header>
 
-      <div className="plan-status-card" style={{ marginBottom: 18, marginTop: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 700 }}>
-          {planInfo.plan.planType === 'monthly'
-            ? '📅 Monthly Plan Active'
-            : '⭐ Yearly Plan Active'}
-        </p>
-        <p className="muted small">
-          {planInfo.turfsUsed} / {planInfo.plan.turfLimit} Turfs Used
-          {' · '}{planInfo.daysLeft} Days Remaining
-        </p>
+<div className="at-banner">
+        <span className="at-banner-dot" />
+        <div>
+          <p className="at-banner-title">
+            {planInfo.plan.planType === 'monthly' ? 'Monthly' : 'Yearly'} plan active
+          </p>
+          <p className="at-banner-sub">
+            {planInfo.turfsUsed} of {planInfo.plan.turfLimit} grounds used
+            {' · '}{planInfo.daysLeft} days left
+          </p>
+        </div>
       </div>
 
       <form className="form" onSubmit={handleSubmit}>
@@ -188,12 +229,12 @@ export default function AddTurf({ user }) {
 
         <button type="button" className="btn-locate"
           onClick={handleFindLocation} disabled={geocoding}>
-          {geocoding ? '🔍 Finding Location…' : '📍 Find Real Location From Address'}
+          {geocoding ? 'Finding location…' : <><Icon name="pin" size={17} /> Find location from address</>}
         </button>
 
         {foundLocation && (
           <div className="location-found">
-            <p className="success-note">✅ Location Found: {f.lat}, {f.lng}</p>
+            <p className="success-note"><Icon name="check" size={14} /> Location found — {f.lat}, {f.lng}</p>
             <p className="muted small" style={{ marginBottom: 8 }}>
               {foundLocation.displayName}
             </p>
@@ -258,7 +299,10 @@ export default function AddTurf({ user }) {
         <input value={f.phone} onChange={e => upd('phone', e.target.value)} required />
 
         <div className="photos-section">
-          <h3 style={{ margin: '16px 0 10px' }}>📸 Turf Photos (Up To 5)</h3>
+          <h3 className="at-photos-head">
+          <Icon name="camera" size={18} /> Ground photos
+          <span className="at-photos-count">up to 5</span>
+        </h3>
           <p className="muted small" style={{ marginBottom: 12 }}>
             Paste Image URLs.
           </p>

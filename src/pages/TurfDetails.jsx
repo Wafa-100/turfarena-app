@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf } from '../utils/api'
 import { buildMapUrl, buildMapLink } from '../utils/geocode'
+import Icon from '../components/Icon'
 
-export default function TurfDetails({user}) {
+export default function TurfDetails({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const [turf, setTurf] = useState(null)
   const [error, setError] = useState('')
-  const [photoIdx, setPhotoIdx] = useState(0)
+  const [idx, setIdx] = useState(0)
 
   useEffect(() => {
     fetchTurf(id).then(setTurf).catch(e => setError(e.message))
@@ -17,120 +18,161 @@ export default function TurfDetails({user}) {
   if (error) return <div className="page"><p className="error">{error}</p></div>
   if (!turf) return <div className="page"><p className="muted">Loading…</p></div>
 
-  // Build the photos list — use photos[] first, fall back to single photo
-  const allPhotos = (turf.photos && turf.photos.length > 0)
-    ? turf.photos
-    : (turf.photo ? [turf.photo] : [`https://picsum.photos/seed/${turf._id}/600/400`])
-
-  const prevPhoto = () => setPhotoIdx(i => (i - 1 + allPhotos.length) % allPhotos.length)
-  const nextPhoto = () => setPhotoIdx(i => (i + 1) % allPhotos.length)
-
+  const photos = (turf.photos?.length ? turf.photos : [turf.photo]).filter(Boolean)
   const hasMap = turf.lat && turf.lng
+  const isOwner = user && turf.owner && String(turf.owner) === String(user.id)
+
+  const facts = [
+    { icon: 'clock',  label: 'Open',    value: `${turf.openTime} – ${turf.closeTime}` },
+    { icon: 'ball',   label: 'Surface', value: turf.surface || 'Artificial turf' },
+    { icon: 'shield', label: 'Size',    value: turf.size || 'Standard' }
+  ]
 
   return (
-    <div className="page no-pad-top">
+    <div className="td-page">
 
-      {/* ── Photo carousel ── */}
-      <div className="carousel-wrap">
-        <img
-          key={photoIdx}
-          src={allPhotos[photoIdx]}
-          alt={`${turf.name} photo ${photoIdx + 1}`}
-          className="hero-img carousel-img"
-        />
+      {/* ── Gallery ── */}
+      <div className="td-gallery">
+        {photos.length > 0 ? (
+          <img key={idx} src={photos[idx]} alt={turf.name} className="td-img" />
+        ) : (
+          <div className="td-img td-noimg" />
+        )}
+        <div className="td-scrim" />
 
-        {/* Back button */}
-        <button className="back-fab" onClick={() => navigate(-1)}>←</button>
+        <button className="td-back" onClick={() => navigate(-1)}>
+          <Icon name="chevron" size={19} className="td-back-icon" />
+        </button>
 
-        {/* Left / right arrows — only show if more than 1 photo */}
-        {allPhotos.length > 1 && (
+        {photos.length > 1 && (
           <>
-            <button className="carousel-arrow carousel-left" onClick={prevPhoto}>‹</button>
-            <button className="carousel-arrow carousel-right" onClick={nextPhoto}>›</button>
+            <span className="td-counter">{idx + 1} / {photos.length}</span>
+            <div className="td-dots">
+              {photos.map((_, i) => (
+                <button key={i}
+                  className={'td-dot' + (i === idx ? ' td-dot-on' : '')}
+                  onClick={() => setIdx(i)} />
+              ))}
+            </div>
+            <button className="td-nav td-nav-l"
+              onClick={() => setIdx(i => (i - 1 + photos.length) % photos.length)}>‹</button>
+            <button className="td-nav td-nav-r"
+              onClick={() => setIdx(i => (i + 1) % photos.length)}>›</button>
           </>
         )}
 
-        {/* Photo counter badge */}
-        {allPhotos.length > 1 && (
-          <div className="carousel-counter">
-            {photoIdx + 1} / {allPhotos.length}
-          </div>
-        )}
-
-        {/* Dot indicators */}
-        {allPhotos.length > 1 && (
-          <div className="carousel-dots">
-            {allPhotos.map((_, i) => (
-              <button key={i}
-                className={'carousel-dot' + (i === photoIdx ? ' carousel-dot-active' : '')}
-                onClick={() => setPhotoIdx(i)}
-              />
-            ))}
-          </div>
-        )}
+        <div className="td-hero-text">
+          <span className="td-sport">{turf.sport}</span>
+          <h1 className="td-name">{turf.name}</h1>
+          <p className="td-loc">
+            <Icon name="pin" size={13} /> {turf.address}, {turf.city}
+          </p>
+        </div>
       </div>
 
-      {/* ── Details ── */}
-      <div className="page-inner">
-        <div className="card-title-row">
-          <h1>{turf.name}</h1>
-          <span className="rating">★ {turf.rating}</span>
+      <div className="td-body">
+
+        {/* ── Price + rating strip ── */}
+        <div className="td-strip">
+          <div>
+            <p className="td-strip-label">Starting from</p>
+            <p className="td-strip-price">
+              ₹{turf.price}<span>/hr</span>
+            </p>
+          </div>
+          {turf.rating > 0 && (
+            <div className="td-strip-rating">
+              <Icon name="star" size={15} filled />
+              <div>
+                <p className="td-strip-rate-num">{turf.rating}</p>
+                <p className="td-strip-rate-lbl">{turf.reviews || 0} reviews</p>
+              </div>
+            </div>
+          )}
         </div>
-        <p className="muted">{turf.sport} • {turf.city}</p>
-        <p className="price big">₹{turf.price}<span className="muted small"> /Hour</span></p>
 
-        <h3 className="section-title">Details</h3>
-        <ul className="detail-list">
-          <li><span>Timings</span><b>{turf.openTime} – {turf.closeTime}</b></li>
-          <li><span>Surface</span><b>{turf.surface}</b></li>
-          <li><span>Size</span><b>{turf.size}</b></li>
-          <li><span>Address</span><b>{turf.address}</b></li>
-        </ul>
-
-        <h3 className="section-title">Amenities</h3>
-        <div className="chips">
-          {(turf.amenities || []).map(a => <span key={a} className="chip">{a}</span>)}
+        {/* ── Facts ── */}
+        <div className="td-facts">
+          {facts.map(f => (
+            <div key={f.label} className="td-fact">
+              <Icon name={f.icon} size={17} className="td-fact-icon" />
+              <p className="td-fact-label">{f.label}</p>
+              <p className="td-fact-value">{f.value}</p>
+            </div>
+          ))}
         </div>
 
-        <h3 className="section-title">About</h3>
-        <p>{turf.description}</p>
-
-        {/* ── REAL OpenStreetMap location ── */}
-        <h3 className="section-title">Location</h3>
-        {hasMap ? (
-          <>
-            <iframe
-              title="real-map"
-              className="map-frame"
-              loading="lazy"
-              src={buildMapUrl(turf.lat, turf.lng)}
-            />
-            <a
-              className="link-row"
-              href={buildMapLink(turf.lat, turf.lng, turf.name)}
-              target="_blank" rel="noreferrer"
-            >
-              📍 Open In OpenStreetMap — {turf.address}, {turf.city}
-            </a>
-          </>
-        ) : (
-          <p className="coord-note">📍 {turf.address}, {turf.city}</p>
+        {/* ── About ── */}
+        {turf.description && (
+          <section className="td-section">
+            <h2 className="td-h2">About this ground</h2>
+            <p className="td-desc">{turf.description}</p>
+          </section>
         )}
 
-        <a className="link-row" href={`tel:${turf.phone}`}>📞 {turf.phone}</a>
+        {/* ── Amenities ── */}
+        {turf.amenities?.length > 0 && (
+          <section className="td-section">
+            <h2 className="td-h2">What's here</h2>
+            <div className="td-amenities">
+              {turf.amenities.map(a => (
+                <span key={a} className="td-amenity">
+                  <Icon name="check" size={13} /> {a}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
 
-{/* Show Edit button ONLY to the turf owner */}
-        {user && turf.owner && String(turf.owner) === String(user.id) && (
-          <button className="btn-owner-edit"
-            onClick={() => navigate(`/edit-turf/${turf._id}`)}>
-            ✏️ Edit My Turf Details
+        {/* ── Location ── */}
+        <section className="td-section">
+          <h2 className="td-h2">Getting there</h2>
+          {hasMap ? (
+            <>
+              <iframe
+                title={`Map of ${turf.name}`}
+                className="td-map"
+                loading="lazy"
+                src={buildMapUrl(turf.lat, turf.lng)}
+              />
+              <a className="td-link" href={buildMapLink(turf.lat, turf.lng, turf.name)}
+                target="_blank" rel="noreferrer">
+                <Icon name="pin" size={17} />
+                <span>Open directions</span>
+                <Icon name="chevron" size={16} className="td-link-arrow" />
+              </a>
+            </>
+          ) : (
+            <p className="td-desc">{turf.address}, {turf.city}</p>
+          )}
+
+          <a className="td-link" href={`tel:${turf.phone}`}>
+            <Icon name="card" size={17} />
+            <span>{turf.phone}</span>
+            <Icon name="chevron" size={16} className="td-link-arrow" />
+          </a>
+        </section>
+
+        {isOwner && (
+          <button className="td-owner-btn" onClick={() => navigate(`/edit-turf/${turf._id}`)}>
+            Edit my ground
           </button>
         )}
 
-        <button className="btn-primary sticky-cta"
-          onClick={() => navigate(`/book/${turf._id}`)}>
-          Book Now
-        </button>
+        <div style={{ height: 92 }} />
+      </div>
+
+      {/* ── Sticky book bar ── */}
+      <div className="td-bar">
+        <div className="td-bar-inner">
+          <div>
+            <p className="td-bar-label">From</p>
+            <p className="td-bar-price">₹{turf.price}<span>/hr</span></p>
+          </div>
+          <button className="td-bar-btn" onClick={() => navigate(`/book/${turf._id}`)}>
+            Check availability
+          </button>
+        </div>
       </div>
     </div>
   )

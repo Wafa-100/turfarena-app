@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { updateProfile, fetchUserStats, saveUser, fetchMyTurfs, fetchPlanStatus } from '../utils/api'
 import ThemeToggle from '../components/ThemeToggle'
+import Icon from '../components/Icon'
 
 export default function Profile({ user, onUserUpdate, onLogout }) {
   const navigate = useNavigate()
@@ -28,7 +29,7 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
     try {
       const u = await updateProfile(user.id, { name, email, phone })
       saveUser(u); onUserUpdate(u)
-      setOk('Your Details Have Been Updated')
+      setOk('Your details have been updated')
       setEditing(false)
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
@@ -45,16 +46,14 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
   return (
     <div className="page pf-page">
 
-      {/* Header card */}
       <div className="pf-hero">
         <div className="pf-avatar">{initials}</div>
         <h1 className="pf-name">{user.name}</h1>
         <p className="pf-email">{user.email}</p>
-        {memberSince && <p className="pf-since">Member Since {memberSince}</p>}
+        {memberSince && <p className="pf-since">Member since {memberSince}</p>}
       </div>
 
-      {/* Activity */}
-      <p className="pf-section-label">Your Activity</p>
+      <p className="pf-section-label">Your activity</p>
       <div className="pf-stats">
         <div className="pf-stat">
           <p className="pf-stat-num">{stats.total}</p>
@@ -72,12 +71,11 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
         </div>
       </div>
 
-      {/* Account details */}
-      <p className="pf-section-label">Account Details</p>
+      <p className="pf-section-label">Account details</p>
       {!editing ? (
         <div className="pf-rows">
           <div className="pf-row">
-            <span className="pf-row-lbl">Full Name</span>
+            <span className="pf-row-lbl">Full name</span>
             <span className="pf-row-val">{user.name}</span>
           </div>
           <div className="pf-row">
@@ -91,21 +89,21 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
             </span>
           </div>
           <button className="pf-edit-btn" onClick={() => { setEditing(true); setOk(''); setError('') }}>
-            Edit Details
+            <Icon name="edit" size={15} /> Edit details
           </button>
         </div>
       ) : (
         <form className="pf-form" onSubmit={save}>
-          <label className="pf-field-lbl">Full Name</label>
+          <label className="pf-field-lbl">Full name</label>
           <input value={name} onChange={e => setName(e.target.value)} required />
-          <label className="pf-field-lbl">Email Address</label>
+          <label className="pf-field-lbl">Email address</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <label className="pf-field-lbl">Phone Number</label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" />
+          <label className="pf-field-lbl">Phone number</label>
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="9876543210" />
           {error && <p className="error">{error}</p>}
           <div className="pf-form-actions">
             <button className="pf-save" type="submit" disabled={busy}>
-              {busy ? 'Saving…' : 'Save Changes'}
+              {busy ? 'Saving…' : 'Save changes'}
             </button>
             <button className="pf-cancel" type="button" onClick={() => {
               setEditing(false); setName(user.name); setEmail(user.email); setPhone(user.phone || '')
@@ -115,51 +113,48 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
       )}
       {ok && <p className="pf-ok">{ok}</p>}
 
-{/* Appearance */}
       <p className="pf-section-label">Appearance</p>
       <ThemeToggle />
 
-      {/* Turf owner section */}
-      <p className="pf-section-label">Turf Owner</p>
+      <p className="pf-section-label">Ground owner</p>
       {plan?.hasPlan ? (
         <div className="pf-plan pf-plan-active">
           <div className="pf-plan-top">
             <div>
               <p className="pf-plan-name">
-                {plan.plan.planType === 'yearly' ? 'Yearly Plan' : 'Monthly Plan'}
+                {plan.plan.planType === 'yearly' ? 'Yearly plan' : 'Monthly plan'}
               </p>
-              <p className="pf-plan-exp">Valid Until {expiry}</p>
+              <p className="pf-plan-exp">Valid until {expiry}</p>
             </div>
-            <span className="pf-plan-badge">{plan.daysLeft}d Left</span>
+            <span className="pf-plan-badge">{plan.daysLeft}d left</span>
           </div>
           <div className="pf-plan-meter">
             <div className="pf-plan-fill"
               style={{ width: `${Math.min(100, (plan.turfsUsed / plan.plan.turfLimit) * 100)}%` }} />
           </div>
           <p className="pf-plan-usage">
-            {plan.turfsUsed} Of {plan.plan.turfLimit} Turfs Listed
+            {plan.turfsUsed} of {plan.plan.turfLimit} grounds listed
           </p>
           <button className="pf-plan-btn" onClick={() => navigate('/add-turf')}>
-            Add Another Turf
+            Add another ground
           </button>
         </div>
       ) : (
         <div className="pf-plan pf-plan-empty">
-          <p className="pf-plan-name">List Your Ground On Turf Arena</p>
+          <p className="pf-plan-name">List your ground on TurfArena</p>
           <p className="pf-plan-desc">
-            Reach Players In Your City And Manage Bookings From One Place.
-            Plans Start At ₹500 Per Month.
+            Reach players in your city and manage bookings from one place.
+            Plans start at ₹2,500 per month.
           </p>
           <button className="pf-plan-btn" onClick={() => navigate('/plan')}>
-            View Plans
+            View plans
           </button>
         </div>
       )}
 
-      {/* My turfs */}
       {turfs.length > 0 && (
         <>
-          <p className="pf-section-label">My Turfs ({turfs.length})</p>
+          <p className="pf-section-label">My grounds ({turfs.length})</p>
           <div className="pf-turfs">
             {turfs.map(t => (
               <div key={t._id} className="pf-turf">
@@ -178,19 +173,22 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
         </>
       )}
 
-      {/* Footer actions */}
       <p className="pf-section-label">More</p>
       <div className="pf-rows">
         <button className="pf-link" onClick={() => navigate('/bookings')}>
-          <span>My Bookings</span><span className="pf-link-arrow">›</span>
+          <span>My bookings</span>
+          <Icon name="chevron" size={17} className="pf-link-arrow" />
         </button>
         <button className="pf-link" onClick={() => navigate('/contact')}>
-          <span>Help & Support</span><span className="pf-link-arrow">›</span>
+          <span>Help & support</span>
+          <Icon name="chevron" size={17} className="pf-link-arrow" />
         </button>
       </div>
 
-      <button className="pf-logout" onClick={onLogout}>Log Out</button>
-      <p className="pf-version">Turf Arena · Version 1.0</p>
+      <button className="pf-logout" onClick={onLogout}>
+        <Icon name="logout" size={16} /> Log out
+      </button>
+      <p className="pf-version">TurfArena · Version 1.0</p>
     </div>
   )
 }
