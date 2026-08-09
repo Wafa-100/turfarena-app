@@ -13,7 +13,13 @@ async function apiFetch(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.message || 'Something Went Wrong — Is The Backend Running?')
+
+  if (!res.ok) {
+    const err = new Error(data.message || 'Something Went Wrong — Is The Backend Running?')
+    err.field = data.field
+    throw err
+  }
+
   return data
 }
 
@@ -79,3 +85,10 @@ export const updateTurf = (id, body) => apiFetch(`/api/turfs/${id}`, { method: '
 // admin plans
 export const adminGetPlans = () => adminFetch('/api/admin/plans')
 export const fetchMyBookingsGrouped = (userId) => apiFetch(`/api/bookings/my/${userId}`)
+
+export const cancelBookingGroup = (body) =>
+  apiFetch('/api/bookings/cancel-group', { method: 'POST', body })
+export const fetchRefundByPayment = (paymentId) =>
+  apiFetch('/api/bookings/refund/by-payment/' + paymentId)
+export const fetchBookingEmail = (bookingId) =>
+  apiFetch('/api/bookings/email/' + bookingId)
