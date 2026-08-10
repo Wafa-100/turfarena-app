@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf, fetchBookedSlots, demoPay } from '../utils/api'
 import { generateSlots, getNext7Days, isPastSlot, prettyDate } from '../utils/slots'
+import { priceForSlot, totalForSlots } from '../utils/pricing'
 import Icon from '../components/Icon'
 
 const BANKS = ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Bank']
@@ -20,6 +21,7 @@ export default function Booking({ user }) {
 
   const [turf, setTurf] = useState(null)
   const [taken, setTaken] = useState([])
+  const [blockedInfo, setBlockedInfo] = useState([])
   const [date, setDate] = useState(days[0].iso)
   const [picked, setPicked] = useState([])
   const [error, setError] = useState('')
@@ -35,16 +37,26 @@ export default function Booking({ user }) {
   const [wallet, setWallet] = useState(WALLETS[0])
   const [processing, setProcessing] = useState(false)
 
-  useEffect(() => { fetchTurf(id).then(setTurf).catch(e => setError(e.message)) }, [id])
+  useEffect(() => {
+    fetchTurf(id).then(setTurf).catch(e => setError(e.message))
+  }, [id])
+
   useEffect(() => {
     if (!turf) return
-    fetchBookedSlots(turf._id, date).then(setTaken).catch(() => setTaken([]))
+    fetchBookedSlots(turf._id, date)
+      .then(r => {
+        // new shape { booked, blocked, all } — old shape was a plain array
+        if (Array.isArray(r)) { setTaken(r); setBlockedInfo([]) }
+        else { setTaken(r.all || []); setBlockedInfo(r.blocked || []) }
+      })
+      .catch(() => { setTaken([]); setBlockedInfo([]) })
   }, [turf, date])
 
   if (!turf) return <div className="page"><p className="muted">{error || 'Loading…'}</p></div>
 
   const slots = generateSlots(turf.openTime, turf.closeTime)
-  const total = turf.price * picked.length
+  const total = totalForSlots(turf, picked)
+  const closed = turf.isOpen === false
 
   function toggle(slot) {
     setPicked(p => p.includes(slot) ? p.filter(s => s !== slot) : [...p, slot])
@@ -67,15 +79,30 @@ export default function Booking({ user }) {
 
   return (
     <div className="page bk-page">
+
       <div className="bk-turf-strip">
         <img src={turf.photo || turf.photos?.[0]} alt="" className="bk-turf-img"
           onError={e => { e.target.style.display = 'none' }} />
         <div>
           <h1 className="bk-turf-name">{turf.name}</h1>
           <p className="bk-turf-meta">{turf.sport} · {turf.city}</p>
-          <p className="bk-turf-rate">₹{turf.price} <span>per hour</span></p>
+          <p className="bk-turf-rate">
+            {turf.pricingMode === 'bands' ? 'from ' : ''}₹{turf.price} <span>per hour</span>
+          </p>
         </div>
       </div>
+
+      {closed && (
+        <div className="bk-closed">
+          <Icon name="lock" size={20} />
+          <div>
+            <p className="bk-closed-title">This ground is closed</p>
+            <p className="bk-closed-sub">
+              {turf.closedNote || 'The owner has paused bookings. Check back soon.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="bk-section">
         <div className="bk-section-head">
@@ -114,15 +141,19 @@ export default function Booking({ user }) {
           {slots.map(s => {
             const isTaken = taken.includes(s)
             const isPast = isPastSlot(date, s)
-            const off = isTaken || isPast
+            const off = isTaken || isPast || closed
             const on = picked.includes(s)
+            const blocked = blockedInfo.find(b => b.slot === s)
+
             return (
               <button key={s} disabled={off}
                 className={'bk-slot' + (on ? ' bk-slot-on' : '') + (off ? ' bk-slot-off' : '')}
                 onClick={() => toggle(s)}>
                 <span className="bk-slot-time">{s}</span>
-                {isTaken && <span className="bk-slot-note">Booked</span>}
-                {!isTaken && isPast && <span className="bk-slot-note">Passed</span>}
+                <span className="bk-slot-cost">₹{priceForSlot(turf, s)}</span>
+                {blocked && <span className="bk-slot-note">Unavailable</span>}
+                {!blocked && isTaken && <span className="bk-slot-note">Booked</span>}
+                {!isTaken && !blocked && isPast && <span className="bk-slot-note">Passed</span>}
                 {on && <span className="bk-slot-tick"><Icon name="check" size={11} /></span>}
               </button>
             )
@@ -157,7 +188,10 @@ export default function Booking({ user }) {
               <div>
                 <p className="bk-bar-tlabel">Total</p>
                 <p className="bk-bar-total">₹{total.toLocaleString('en-IN')}</p>
-                <p className="bk-bar-calc">₹{turf.price} × {picked.length}</p>
+                <p className="bk-bar-calc">
+                  {picked.length} hour{picked.length > 1 ? 's' : ''}
+                  {turf.pricingMode === 'bands' ? ' · rates vary by time' : ` × ₹${turf.price}`}
+                </p>
               </div>
               <button className="bk-pay" onClick={() => { setError(''); setShowPay(true) }}>
                 Continue
@@ -180,10 +214,14 @@ export default function Booking({ user }) {
             <div className="pay-summary">
               <div className="pay-sum-row"><span>{turf.name}</span><span>{prettyDate(date)}</span></div>
               <div className="pay-slot-chips">
-                {sorted.map(s => <span key={s} className="pay-chip">{s}</span>)}
+                {sorted.map(s => (
+                  <span key={s} className="pay-chip">
+                    {s} <b>₹{priceForSlot(turf, s)}</b>
+                  </span>
+                ))}
               </div>
               <div className="pay-sum-row pay-sum-total">
-                <span>{picked.length} hour{picked.length > 1 ? 's' : ''} × ₹{turf.price}</span>
+                <span>{picked.length} hour{picked.length > 1 ? 's' : ''}</span>
                 <b>₹{total.toLocaleString('en-IN')}</b>
               </div>
             </div>

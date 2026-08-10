@@ -36,6 +36,11 @@ function TurfCard({ turf }) {
 
         <span className="tcard-sport">{turf.sport}</span>
 
+<span className={'tcard-status' + (turf.isOpen === false ? ' tcard-status-closed' : '')}>
+          <span className="tcard-status-dot" />
+          {turf.isOpen === false ? 'Closed' : 'Open'}
+        </span>
+
         {turf.rating > 0 && (
           <span className="tcard-rating">
             <Icon name="star" size={11} filled />
@@ -54,6 +59,7 @@ function TurfCard({ turf }) {
 
       <div className="tcard-foot">
         <div className="tcard-price">
+          {turf.pricingMode === 'bands' && <span className="tcard-from">from</span>}
           <span className="tcard-price-num">₹{turf.price}</span>
           <span className="tcard-price-unit">/ hour</span>
         </div>

@@ -162,11 +162,19 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
                   onError={e => { e.target.style.visibility = 'hidden' }} />
                 <div className="pf-turf-mid">
                   <p className="pf-turf-name">{t.name}</p>
-                  <p className="pf-turf-meta">{t.sport} · {t.city} · ₹{t.price}/hr</p>
+                  <p className="pf-turf-meta">
+                    <span className={'pf-dot' + (t.isOpen === false ? ' pf-dot-closed' : '')} />
+                    {t.isOpen === false ? 'Closed' : 'Open'} · {t.city} · ₹{t.price}/hr
+                  </p>
                 </div>
-                <button className="pf-turf-edit" onClick={() => navigate(`/edit-turf/${t._id}`)}>
-                  Edit
-                </button>
+                <div className="pf-turf-actions">
+                  <button className="pf-turf-manage" onClick={() => navigate(`/manage/${t._id}`)}>
+                    Manage
+                  </button>
+                  <button className="pf-turf-edit" onClick={() => navigate(`/edit-turf/${t._id}`)}>
+                    Edit
+                  </button>
+                </div>
               </div>
             ))}
           </div>

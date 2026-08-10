@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf } from '../utils/api'
 import { buildMapUrl, buildMapLink } from '../utils/geocode'
 import Icon from '../components/Icon'
+import { priceRange } from '../utils/pricing'
 
 export default function TurfDetails({ user }) {
   const { id } = useParams()
@@ -72,12 +73,24 @@ export default function TurfDetails({ user }) {
 
       <div className="td-body">
 
+{turf.isOpen === false && (
+          <div className="td-closed">
+            <Icon name="lock" size={18} />
+            <div>
+              <p className="td-closed-title">Closed for bookings</p>
+              <p className="td-closed-sub">
+                {turf.closedNote || 'The owner has paused new bookings.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── Price + rating strip ── */}
         <div className="td-strip">
           <div>
             <p className="td-strip-label">Starting from</p>
             <p className="td-strip-price">
-              ₹{turf.price}<span>/hr</span>
+              {priceRange(turf)}<span>/hr</span>
             </p>
           </div>
           {turf.rating > 0 && (
@@ -119,6 +132,23 @@ export default function TurfDetails({ user }) {
                 <span key={a} className="td-amenity">
                   <Icon name="check" size={13} /> {a}
                 </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+{turf.pricingMode === 'bands' && turf.priceBands?.length > 0 && (
+          <section className="td-section">
+            <h2 className="td-h2">Rates by time</h2>
+            <div className="td-bands">
+              {turf.priceBands.map((b, i) => (
+                <div key={i} className="td-band">
+                  <div>
+                    <p className="td-band-label">{b.label || 'Slot'}</p>
+                    <p className="td-band-time">{b.from} – {b.to}</p>
+                  </div>
+                  <span className="td-band-price">₹{b.price}<small>/hr</small></span>
+                </div>
               ))}
             </div>
           </section>
@@ -169,8 +199,10 @@ export default function TurfDetails({ user }) {
             <p className="td-bar-label">From</p>
             <p className="td-bar-price">₹{turf.price}<span>/hr</span></p>
           </div>
-          <button className="td-bar-btn" onClick={() => navigate(`/book/${turf._id}`)}>
-            Check availability
+          <button className="td-bar-btn"
+            disabled={turf.isOpen === false}
+            onClick={() => navigate(`/book/${turf._id}`)}>
+            {turf.isOpen === false ? 'Currently closed' : 'Check availability'}
           </button>
         </div>
       </div>

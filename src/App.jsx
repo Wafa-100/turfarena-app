@@ -16,6 +16,7 @@ import PlanPurchase from './pages/PlanPurchase'
 import Contact from './pages/Contact'
 import Profile from './pages/Profile'
 import AdminApp from './admin/AdminApp'
+import ManageGround from './pages/ManageGround'
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/profile"
             element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
           <Route path="*"               element={<Navigate to="/" replace />} />
+          <Route path="/manage/:id" element={<ManageGround user={user} />} />
         </Routes>
       </main>
       <BottomNav />

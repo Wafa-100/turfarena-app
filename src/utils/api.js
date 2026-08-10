@@ -92,3 +92,15 @@ export const fetchRefundByPayment = (paymentId) =>
   apiFetch('/api/bookings/refund/by-payment/' + paymentId)
 export const fetchBookingEmail = (bookingId) =>
   apiFetch('/api/bookings/email/' + bookingId)
+
+// ── Owner ground management ──────────────────────────────────────
+export const setTurfStatus = (id, body) =>
+  apiFetch(`/api/turfs/${id}/status`, { method: 'PATCH', body })
+export const setTurfPricing = (id, body) =>
+  apiFetch(`/api/turfs/${id}/pricing`, { method: 'PUT', body })
+export const fetchBlocks = (turfId, date) =>
+  apiFetch(`/api/blocks/${turfId}${date ? '?date=' + date : ''}`)
+export const createBlocks = (body) =>
+  apiFetch('/api/blocks', { method: 'POST', body })
+export const removeBlock = (id, userId) =>
+  apiFetch(`/api/blocks/${id}`, { method: 'DELETE', body: { userId } })
