@@ -92,6 +92,11 @@ export default function TurfDetails({ user }) {
             <p className="td-strip-price">
               {priceRange(turf)}<span>/hr</span>
             </p>
+            {turf.paymentMode === 'venue' && (
+            <span className="td-venue-tag">
+              <Icon name="wallet" size={12} /> Pay at ground
+            </span>
+          )}
           </div>
           {turf.rating > 0 && (
             <div className="td-strip-rating">

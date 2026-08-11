@@ -104,3 +104,15 @@ export const createBlocks = (body) =>
   apiFetch('/api/blocks', { method: 'POST', body })
 export const removeBlock = (id, userId) =>
   apiFetch(`/api/blocks/${id}`, { method: 'DELETE', body: { userId } })
+
+// ── Wallet ───────────────────────────────────────────────────────
+export const fetchWallet = (userId) => apiFetch('/api/wallet/' + userId)
+export const topUpWallet = (body) =>
+  apiFetch('/api/wallet/topup', { method: 'POST', body })
+
+// ── Turf payment mode ────────────────────────────────────────────
+export const setTurfPaymentMode = (id, body) =>
+  apiFetch(`/api/turfs/${id}/payment-mode`, { method: 'PUT', body })
+
+export const fetchRefundForBooking = (bookingId) =>
+  apiFetch('/api/bookings/refund/' + bookingId)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { registerUser, loginUser, saveUser } from '../utils/api'
+import { checkEmail } from '../utils/emailCheck'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
@@ -11,6 +12,7 @@ export default function Login({ onLogin }) {
   const [showCp, setShowCp] = useState(false)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState('')
+  const [suggestion, setSuggestion] = useState(null)
 
   const isRegister = mode === 'register'
 
@@ -35,9 +37,13 @@ export default function Login({ onLogin }) {
       else if (f.name.trim().length < 2) e.name = 'Name Looks Too Short'
     }
 
-    if (!f.email.trim()) e.email = 'Email Is Required'
-    else if (!EMAIL_RE.test(f.email.trim()))
-      e.email = 'Not A Valid Email — It Needs An @ And A Domain Like .com'
+   const emailCheck = checkEmail(f.email)
+    if (!emailCheck.valid) {
+      e.email = emailCheck.error
+      setSuggestion(emailCheck.suggestion)
+    } else {
+      setSuggestion(null)
+    }
 
     if (isRegister) {
       if (!f.phone) e.phone = 'Phone Number Is Required'
@@ -136,6 +142,16 @@ export default function Login({ onLogin }) {
               placeholder="you@example.com"
             />
             {errors.email && <p className="au-field-err">{errors.email}</p>}
+            {suggestion && (
+              <button type="button" className="em-fix"
+                onClick={() => {
+                  upd('email', suggestion)
+                  setSuggestion(null)
+                  setErrors(x => ({ ...x, email: '' }))
+                }}>
+                Use {suggestion}
+              </button>
+            )}
           </div>
 
           {isRegister && (

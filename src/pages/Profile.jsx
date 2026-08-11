@@ -1,38 +1,121 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { updateProfile, fetchUserStats, saveUser, fetchMyTurfs, fetchPlanStatus } from '../utils/api'
+import {
+  updateProfile, fetchUserStats, saveUser,
+  fetchMyTurfs, fetchPlanStatus, fetchWallet
+} from '../utils/api'
 import ThemeToggle from '../components/ThemeToggle'
 import Icon from '../components/Icon'
+import { checkEmail } from '../utils/emailCheck'
+import Avatar, { AVATARS } from '../components/Avatar'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
 export default function Profile({ user, onUserUpdate, onLogout }) {
   const navigate = useNavigate()
   const [stats, setStats] = useState({ total: 0, confirmed: 0, spent: 0 })
   const [plan, setPlan] = useState(null)
   const [turfs, setTurfs] = useState([])
+  const [balance, setBalance] = useState(0)
+
   const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(user.name)
-  const [email, setEmail] = useState(user.email)
-  const [phone, setPhone] = useState(user.phone || '')
-  const [error, setError] = useState('')
+  const [f, setF] = useState({
+    name: user.name,
+    email: user.email,
+    phone: (user.phone || '').replace(/\D/g, '').slice(-10)
+  })
+  const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
+  const [suggestion, setSuggestion] = useState(null)
+  const [showAvatars, setShowAvatars] = useState(false)
+  const [avatar, setAvatar] = useState(user.avatar || '')
 
   useEffect(() => {
     fetchUserStats(user.id).then(setStats).catch(() => {})
     fetchPlanStatus(user.id).then(setPlan).catch(() => {})
     fetchMyTurfs(user.id).then(setTurfs).catch(() => {})
+    fetchWallet(user.id).then(r => setBalance(r.balance)).catch(() => {})
   }, [])
 
-  async function save(e) {
-    e.preventDefault()
-    setError(''); setOk(''); setBusy(true)
+  function upd(key, value) {
+    setF(p => ({ ...p, [key]: value }))
+    if (errors[key]) setErrors(e => ({ ...e, [key]: '' }))
+    setFormError('')
+  }
+
+  function updPhone(value) {
+    upd('phone', value.replace(/\D/g, '').slice(0, 10))
+  }
+
+  /* Same rules as the register page */
+  function validate() {
+    const e = {}
+
+    if (!f.name.trim()) e.name = 'Please enter your full name'
+    else if (f.name.trim().length < 2) e.name = 'Name looks too short'
+
+    const emailCheck = checkEmail(f.email)
+    if (!emailCheck.valid) {
+      e.email = emailCheck.error
+      setSuggestion(emailCheck.suggestion)
+    } else {
+      setSuggestion(null)
+    }
+
+    if (!f.phone) e.phone = 'Phone number is required'
+    else if (f.phone.length < 10) e.phone = `Too short — ${f.phone.length} of 10 digits`
+    else if (f.phone.length > 10) e.phone = 'Too long — must be exactly 10 digits'
+
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function save(ev) {
+    ev.preventDefault()
+    setFormError(''); setOk('')
+    if (!validate()) return
+
+    setBusy(true)
     try {
-      const u = await updateProfile(user.id, { name, email, phone })
-      saveUser(u); onUserUpdate(u)
+      const u = await updateProfile(user.id, {
+        name: f.name, email: f.email, phone: f.phone
+      })
+      saveUser(u)
+      onUserUpdate(u)
       setOk('Your details have been updated')
       setEditing(false)
-    } catch (err) { setError(err.message) }
-    finally { setBusy(false) }
+      setErrors({})
+    } catch (err) {
+      if (err.field) setErrors(e => ({ ...e, [err.field]: err.message }))
+      else setFormError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function pickAvatar(id) {
+    setAvatar(id)
+    setShowAvatars(false)
+    try {
+      const u = await updateProfile(user.id, {
+        name: user.name, email: user.email, phone: user.phone, avatar: id
+      })
+      saveUser(u)
+      onUserUpdate(u)
+    } catch (e) { setFormError(e.message) }
+  }
+
+  function cancelEdit() {
+    setEditing(false)
+    setErrors({})
+    setFormError('')
+    setF({
+      name: user.name,
+      email: user.email,
+      phone: (user.phone || '').replace(/\D/g, '').slice(-10)
+    })
   }
 
   const initials = user.name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -40,17 +123,50 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
     ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
     : null
   const expiry = plan?.plan
-    ? new Date(plan.plan.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    ? new Date(plan.plan.expiryDate).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric'
+      })
     : null
 
   return (
     <div className="page pf-page">
 
       <div className="pf-hero">
-        <div className="pf-avatar">{initials}</div>
+        <button className="pf-avatar-btn" onClick={() => setShowAvatars(true)}>
+          <Avatar id={avatar} name={user.name} size={78} />
+          <span className="pf-avatar-edit"><Icon name="edit" size={13} /></span>
+        </button>
         <h1 className="pf-name">{user.name}</h1>
         <p className="pf-email">{user.email}</p>
         {memberSince && <p className="pf-since">Member since {memberSince}</p>}
+        {showAvatars && (
+        <div className="overlay" onClick={() => setShowAvatars(false)}>
+          <div className="sheet sheet-short" onClick={e => e.stopPropagation()}>
+            <div className="sheet-head">
+              <h2>Choose an avatar</h2>
+              <button className="sheet-close" onClick={() => setShowAvatars(false)}>
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+            <div className="sheet-body">
+              <div className="av-grid">
+                <button className={'av-pick' + (!avatar ? ' av-pick-on' : '')}
+                  onClick={() => pickAvatar('')}>
+                  <Avatar id="" name={user.name} size={58} />
+                  <span className="av-pick-label">Initials</span>
+                </button>
+                {AVATARS.map(a => (
+                  <button key={a.id}
+                    className={'av-pick' + (avatar === a.id ? ' av-pick-on' : '')}
+                    onClick={() => pickAvatar(a.id)}>
+                    <Avatar id={a.id} size={58} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       <p className="pf-section-label">Your activity</p>
@@ -71,6 +187,18 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
         </div>
       </div>
 
+      <p className="pf-section-label">Wallet</p>
+      <button className="pf-wallet" onClick={() => navigate('/wallet')}>
+        <span className="pf-wallet-icon"><Icon name="wallet" size={20} /></span>
+        <div className="pf-wallet-mid">
+          <p className="pf-wallet-label">TurfArena Wallet</p>
+          <p className="pf-wallet-bal">₹{balance.toLocaleString('en-IN')}</p>
+        </div>
+        <span className="pf-wallet-cta">
+          Add money <Icon name="chevron" size={15} />
+        </span>
+      </button>
+
       <p className="pf-section-label">Account details</p>
       {!editing ? (
         <div className="pf-rows">
@@ -85,29 +213,79 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
           <div className="pf-row">
             <span className="pf-row-lbl">Phone</span>
             <span className={'pf-row-val' + (user.phone ? '' : ' pf-row-empty')}>
-              {user.phone || 'Not added'}
+              {user.phone ? `+91 ${user.phone}` : 'Not added'}
             </span>
           </div>
-          <button className="pf-edit-btn" onClick={() => { setEditing(true); setOk(''); setError('') }}>
+          <button className="pf-edit-btn" onClick={() => { setEditing(true); setOk(''); setFormError('') }}>
             <Icon name="edit" size={15} /> Edit details
           </button>
         </div>
       ) : (
-        <form className="pf-form" onSubmit={save}>
-          <label className="pf-field-lbl">Full name</label>
-          <input value={name} onChange={e => setName(e.target.value)} required />
-          <label className="pf-field-lbl">Email address</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <label className="pf-field-lbl">Phone number</label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="9876543210" />
-          {error && <p className="error">{error}</p>}
+        <form className="pf-form" onSubmit={save} noValidate>
+
+          <div className="au-field">
+            <label className="au-label">Full name</label>
+            <input
+              className={errors.name ? 'au-input-bad' : ''}
+              value={f.name}
+              onChange={e => upd('name', e.target.value)}
+              placeholder="e.g. Rahul Sharma"
+            />
+            {errors.name && <p className="au-field-err">{errors.name}</p>}
+          </div>
+
+          <div className="au-field">
+            <label className="au-label">Email address</label>
+            <input
+              className={errors.email ? 'au-input-bad' : ''}
+              type="email"
+              inputMode="email"
+              value={f.email}
+              onChange={e => upd('email', e.target.value)}
+              placeholder="you@example.com"
+            />
+            {errors.email && <p className="au-field-err">{errors.email}</p>}
+            {suggestion && (
+              <button type="button" className="em-fix"
+                onClick={() => {
+                  upd('email', suggestion)
+                  setSuggestion(null)
+                  setErrors(x => ({ ...x, email: '' }))
+                }}>
+                Use {suggestion}
+              </button>
+            )}
+          </div>
+
+          <div className="au-field">
+            <label className="au-label">Phone number</label>
+            <div className="au-phone-wrap">
+              <span className="au-phone-code">+91</span>
+              <input
+                className={'au-phone-input' + (errors.phone ? ' au-input-bad' : '')}
+                type="tel"
+                inputMode="numeric"
+                value={f.phone}
+                onChange={e => updPhone(e.target.value)}
+                placeholder="9876543210"
+                maxLength={10}
+              />
+              <span className={'au-phone-count' + (f.phone.length === 10 ? ' au-count-ok' : '')}>
+                {f.phone.length}/10
+              </span>
+            </div>
+            {errors.phone && <p className="au-field-err">{errors.phone}</p>}
+          </div>
+
+          {formError && <p className="au-error">{formError}</p>}
+
           <div className="pf-form-actions">
             <button className="pf-save" type="submit" disabled={busy}>
               {busy ? 'Saving…' : 'Save changes'}
             </button>
-            <button className="pf-cancel" type="button" onClick={() => {
-              setEditing(false); setName(user.name); setEmail(user.email); setPhone(user.phone || '')
-            }}>Cancel</button>
+            <button className="pf-cancel" type="button" onClick={cancelEdit}>
+              Cancel
+            </button>
           </div>
         </form>
       )}

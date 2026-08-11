@@ -35,6 +35,9 @@ function TurfCard({ turf }) {
         <div className="tcard-scrim" />
 
         <span className="tcard-sport">{turf.sport}</span>
+        {turf.paymentMode === 'venue' && (
+          <span className="tcard-venue">Pay at ground</span>
+        )}
 
 <span className={'tcard-status' + (turf.isOpen === false ? ' tcard-status-closed' : '')}>
           <span className="tcard-status-dot" />

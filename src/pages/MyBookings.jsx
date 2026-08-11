@@ -1,44 +1,77 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchMyBookings, cancelBookingGroup, fetchRefundByPayment } from '../utils/api'
+import {
+  fetchMyBookings, cancelBookingGroup, fetchRefundForBooking
+} from '../utils/api'
 import { prettyDate, todayIso } from '../utils/slots'
 import BookingTicket from '../components/BookingTicket'
+import BankFields, { validateBank } from '../components/BankFields'
 import Icon from '../components/Icon'
 
 const REFUND_METHODS = [
-  { id: 'original', label: 'Original Payment Method', sub: 'Back to how you paid',        icon: 'undo',   needs: null },
-  { id: 'upi',      label: 'UPI',                     sub: 'Instant to your UPI ID',      icon: 'phone',  needs: 'UPI ID (e.g. name@paytm)' },
-  { id: 'bank',     label: 'Bank Account',            sub: '3–5 working days',            icon: 'bank',   needs: 'Account number' },
-  { id: 'wallet',   label: 'TurfArena Wallet',        sub: 'Instant, use on next booking', icon: 'wallet', needs: null }
+  { id: 'original', label: 'Original payment method', sub: 'Back to how you paid · 3–5 days',   icon: 'undo',   needs: null },
+  { id: 'wallet',   label: 'TurfArena Wallet',        sub: 'Instant · use on your next booking', icon: 'wallet', needs: null },
+  { id: 'upi',      label: 'UPI',                     sub: 'Instant to your UPI ID',             icon: 'phone',  needs: 'upi' },
+  { id: 'bank',     label: 'Bank account',            sub: '3–5 working days',                   icon: 'bank',   needs: 'bank' }
 ]
 
-/* Group bookings that were paid for together into one entry */
-function groupByPayment(list) {
+const hourOf = s => parseInt(s, 10)
+
+/*
+  Group hours booked in one transaction into a single row.
+
+  Key order matters:
+    1. bookingGroup  — set on everything booked after this fix
+    2. payment id    — older paid bookings
+    3. turf+date+minute — older venue bookings, which had neither
+
+  Status is part of the key, so a partly-cancelled booking correctly
+  appears once under Upcoming and once under Cancelled.
+*/
+function groupBookings(list) {
   const map = new Map()
+
   for (const b of list) {
-    const key = b.payment?._id || b.payment || b._id
+    let base
+    if (b.bookingGroup) base = b.bookingGroup
+    else if (b.payment?._id || b.payment) base = String(b.payment?._id || b.payment)
+    else {
+      const minute = new Date(b.createdAt).toISOString().slice(0, 16)
+      base = `${b.turf?._id || b.turf}-${b.date}-${minute}`
+    }
+
+    const key = `${base}::${b.status}`
     if (!map.has(key)) map.set(key, [])
     map.get(key).push(b)
   }
+
   return [...map.entries()].map(([key, group]) => {
-    const sorted = [...group].sort(
-      (a, b) => parseInt(a.slot, 10) - parseInt(b.slot, 10)
-    )
+    const sorted = [...group].sort((a, b) => hourOf(a.slot) - hourOf(b.slot))
     const first = sorted[0]
+    const total = sorted.reduce((s, x) => s + (x.price || 0), 0)
+
+    // "11:00 - 16:00" only when the hours are consecutive
+    const consecutive = sorted.every((b, i) =>
+      i === 0 || hourOf(b.slot) === hourOf(sorted[i - 1].slot) + 1
+    )
+    const range = sorted.length === 1
+      ? first.slot
+      : consecutive
+        ? `${sorted[0].slot.split(' - ')[0]} - ${sorted[sorted.length - 1].slot.split(' - ')[1]}`
+        : `${sorted.length} hours`
+
     return {
       key,
-      paymentId: first.payment?._id || null,
       bookings: sorted,
       first,
       count: sorted.length,
-      total: first.payment?.amount ?? sorted.reduce((s, x) => s + (x.price || 0), 0),
+      total,
       date: first.date,
       status: first.status,
+      payAtVenue: !!first.payAtVenue,
       createdAt: first.createdAt,
-      // "08:00 - 11:00" when the hours run back to back
-      range: sorted.length > 1
-        ? `${sorted[0].slot.split(' - ')[0]} - ${sorted[sorted.length - 1].slot.split(' - ')[1]}`
-        : first.slot
+      consecutive,
+      range
     }
   })
 }
@@ -50,14 +83,17 @@ export default function MyBookings({ user }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [detail, setDetail] = useState(null)     // group being viewed
+  const [detail, setDetail] = useState(null)
   const [detailRefund, setDetailRefund] = useState(null)
 
-  const [cancelling, setCancelling] = useState(null)  // group being cancelled
+  const [cancelling, setCancelling] = useState(null)
+  const [chosen, setChosen] = useState([])          // booking ids to cancel
   const [method, setMethod] = useState('original')
   const [detailsInput, setDetailsInput] = useState('')
+  const [bankDetails, setBankDetails] = useState({})
+  const [bankErrs, setBankErrs] = useState({})
   const [busy, setBusy] = useState(false)
-  const [receipt, setReceipt] = useState(null)   // refund just created
+  const [receipt, setReceipt] = useState(null)
 
   function load() {
     setLoading(true)
@@ -68,16 +104,15 @@ export default function MyBookings({ user }) {
   }
   useEffect(load, [])
 
-  // when a cancelled group is opened, pull its refund receipt
   useEffect(() => {
     setDetailRefund(null)
-    if (detail && detail.status === 'Cancelled' && detail.paymentId) {
-      fetchRefundByPayment(detail.paymentId).then(setDetailRefund).catch(() => {})
+    if (detail && detail.status === 'Cancelled') {
+      fetchRefundForBooking(detail.first._id).then(setDetailRefund).catch(() => {})
     }
   }, [detail])
 
   const today = todayIso()
-  const groups = groupByPayment(all)
+  const groups = groupBookings(all)
 
   const upcoming  = groups.filter(g => g.status === 'Confirmed' && g.date >= today)
   const past      = groups.filter(g => g.status === 'Confirmed' && g.date <  today)
@@ -89,23 +124,63 @@ export default function MyBookings({ user }) {
     { id: 'cancelled', label: 'Cancelled', list: cancelled }
   ]
   const active = TABS.find(t => t.id === tab)
-
   const selectedMethod = REFUND_METHODS.find(m => m.id === method)
 
+  /* Open the cancel sheet with every hour pre-selected */
+  function startCancel(group) {
+    setChosen(group.bookings.map(b => b._id))
+    setCancelling(group)
+    setDetail(null)
+    setError('')
+  }
+
+  function toggleHour(id) {
+    setChosen(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
+  }
+
+  const chosenBookings = cancelling
+    ? cancelling.bookings.filter(b => chosen.includes(b._id))
+    : []
+  const chosenTotal = chosenBookings.reduce((s, b) => s + (b.price || 0), 0)
+  const partial = cancelling && chosen.length < cancelling.count
+
   async function confirmCancel() {
-    if (selectedMethod?.needs && !detailsInput.trim()) return
+    if (!chosen.length) { setError('Select at least one hour'); return }
+
+    const m = selectedMethod
+    const venue = cancelling.payAtVenue
+
+    if (!venue) {
+      if (m.needs === 'upi' && !detailsInput.trim()) {
+        setError('Enter your UPI ID'); return
+      }
+      if (m.needs === 'bank') {
+        const e = validateBank({ ...bankDetails, confirmNumber: bankDetails.confirmNumber }, 'bank')
+        setBankErrs(e)
+        if (Object.keys(e).length) return
+      }
+    }
+
     setBusy(true)
     try {
+      const details = m.needs === 'bank'
+        ? `${bankDetails.accountName} · ${bankDetails.accountNumber} · ${bankDetails.ifsc}`
+        : detailsInput.trim()
+
       const result = await cancelBookingGroup({
         userId: user.id,
-        paymentId: cancelling.paymentId,
-        refundMethod: selectedMethod.label,
-        refundDetails: detailsInput.trim()
+        bookingIds: chosen,
+        refundMethod: venue ? 'No payment taken' : m.label,
+        refundDetails: venue ? '' : details
       })
+
       setCancelling(null)
+      setChosen([])
       setDetailsInput('')
+      setBankDetails({})
+      setBankErrs({})
       setMethod('original')
-      setReceipt(result.refund)
+      if (result.refund) setReceipt(result.refund)
       load()
     } catch (e) {
       setError(e.message)
@@ -122,8 +197,8 @@ export default function MyBookings({ user }) {
   return (
     <div className="page mb-page">
       <header className="page-head">
-        <h1>My Bookings</h1>
-        <p className="muted">Tap Any Booking To See The Full Pass</p>
+        <h1>My bookings</h1>
+        <p className="muted">Tap any booking to see the full pass</p>
       </header>
 
       <div className="mb-tabs">
@@ -137,8 +212,8 @@ export default function MyBookings({ user }) {
         ))}
       </div>
 
-      {loading && <p className="muted">Loading Your Bookings…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <p className="muted">Loading your bookings…</p>}
+      {error && !cancelling && <p className="error">{error}</p>}
 
       {!loading && active.list.length === 0 && (
         <div className="mb-empty">
@@ -146,24 +221,23 @@ export default function MyBookings({ user }) {
             <Icon name={tab === 'upcoming' ? 'calendar' : tab === 'past' ? 'check' : 'undo'} size={34} />
           </div>
           <p className="mb-empty-title">
-            {tab === 'upcoming' ? 'No Upcoming Bookings'
-              : tab === 'past' ? 'Nothing Completed Yet'
-              : 'No Cancellations'}
+            {tab === 'upcoming' ? 'No upcoming bookings'
+              : tab === 'past' ? 'Nothing completed yet'
+              : 'No cancellations'}
           </p>
           <p className="mb-empty-sub">
-            {tab === 'upcoming' ? 'Find A Ground And Book Your Next Game.'
-              : tab === 'past' ? 'Your Finished Games Will Appear Here.'
-              : 'Cancelled Bookings And Refunds Show Up Here.'}
+            {tab === 'upcoming' ? 'Find a ground and book your next game.'
+              : tab === 'past' ? 'Your finished games will appear here.'
+              : 'Cancelled bookings and refunds show up here.'}
           </p>
           {tab === 'upcoming' && (
             <button className="btn-primary" onClick={() => navigate('/')}>
-              Browse Grounds
+              Browse grounds
             </button>
           )}
         </div>
       )}
 
-      {/* ── Booking list — ONE row per payment ── */}
       <div className="mb-list">
         {active.list.map(g => {
           const st = statusOf(g)
@@ -186,9 +260,7 @@ export default function MyBookings({ user }) {
                   <p className="mb-time">
                     <Icon name="clock" size={13} />
                     <span className="mb-range">{g.range}</span>
-                    {g.count > 1 && (
-                      <span className="mb-hours-pill">{g.count} hrs</span>
-                    )}
+                    {g.count > 1 && <span className="mb-hours-pill">{g.count} hrs</span>}
                   </p>
                 </div>
 
@@ -205,22 +277,26 @@ export default function MyBookings({ user }) {
               <div className="mb-card-foot">
                 <p className="mb-total">
                   ₹{g.total.toLocaleString('en-IN')}
-                  {g.count > 1 && <span className="mb-total-sub"> · {g.count} hrs</span>}
+                  {g.payAtVenue && st !== 'Cancelled' && (
+                    <span className="mb-venue-pill">Due at ground</span>
+                  )}
                 </p>
-                <p className="mb-tap-hint">Tap To View Pass</p>
+                <p className="mb-tap-hint">Tap to view pass</p>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* ══ DETAIL SHEET — the full ticket ══ */}
+      {/* ══ DETAIL SHEET ══ */}
       {detail && (
         <div className="overlay" onClick={() => setDetail(null)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-head">
-              <h2>Booking Pass</h2>
-              <button className="sheet-close" onClick={() => setDetail(null)}>✕</button>
+              <h2>Booking pass</h2>
+              <button className="sheet-close" onClick={() => setDetail(null)}>
+                <Icon name="close" size={14} />
+              </button>
             </div>
 
             <div className="sheet-body">
@@ -232,9 +308,10 @@ export default function MyBookings({ user }) {
               />
 
               {statusOf(detail) === 'Confirmed' && (
-                <button className="mb-cancel-full"
-                  onClick={() => { setCancelling(detail); setDetail(null) }}>
-                  Cancel Booking & Get Refund
+                <button className="mb-cancel-full" onClick={() => startCancel(detail)}>
+                  {detail.count > 1
+                    ? 'Cancel hours & get refund'
+                    : detail.payAtVenue ? 'Cancel reservation' : 'Cancel & get refund'}
                 </button>
               )}
             </div>
@@ -242,78 +319,167 @@ export default function MyBookings({ user }) {
         </div>
       )}
 
-      {/* ══ CANCEL — choose refund method ══ */}
+      {/* ══ CANCEL SHEET ══ */}
       {cancelling && (
         <div className="overlay" onClick={() => !busy && setCancelling(null)}>
           <div className="sheet sheet-short" onClick={e => e.stopPropagation()}>
             <div className="sheet-head">
-              <h2>Cancel Booking</h2>
-              <button className="sheet-close" disabled={busy}
-                onClick={() => setCancelling(null)}>✕</button>
+              <h2>{cancelling.payAtVenue ? 'Cancel reservation' : 'Cancel booking'}</h2>
+              <button className="sheet-close" disabled={busy} onClick={() => setCancelling(null)}>
+                <Icon name="close" size={14} />
+              </button>
             </div>
 
             <div className="sheet-body">
-              <div className="rf-amount-card">
-                <p className="rf-amount-label">Refund Amount</p>
-                <p className="rf-amount">₹{cancelling.total.toLocaleString('en-IN')}</p>
-                <p className="rf-amount-sub">
-                  {cancelling.first.turf?.name} · {prettyDate(cancelling.date)} · {cancelling.range}
-                </p>
-              </div>
 
-              <p className="rf-section-label">Where Should We Send The Refund?</p>
-              <div className="rf-methods">
-                {REFUND_METHODS.map(m => (
-                  <button key={m.id}
-                    className={'rf-method' + (method === m.id ? ' rf-method-on' : '')}
-                    onClick={() => { setMethod(m.id); setDetailsInput('') }}>
-                    <span className="rf-method-icon"><Icon name={m.icon} size={19} /></span>
-                    <div className="rf-method-text">
-                      <p className="rf-method-label">{m.label}</p>
-                      <p className="rf-method-sub">{m.sub}</p>
-                    </div>
-                    <span className={'rf-radio' + (method === m.id ? ' rf-radio-on' : '')} />
-                  </button>
-                ))}
-              </div>
+              {/* Hour picker — only when there is more than one */}
+              {cancelling.count > 1 && (
+                <>
+                  <div className="hp-head">
+                    <p className="rf-section-label" style={{ margin: 0 }}>
+                      Which hours are you cancelling?
+                    </p>
+                    <button className="hp-all"
+                      onClick={() => setChosen(
+                        chosen.length === cancelling.count
+                          ? []
+                          : cancelling.bookings.map(b => b._id)
+                      )}>
+                      {chosen.length === cancelling.count ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
 
-              {selectedMethod?.needs && (
-                <div className="rf-input-wrap">
-                  <label className="rf-input-label">{selectedMethod.needs}</label>
-                  <input value={detailsInput}
-                    onChange={e => setDetailsInput(e.target.value)}
-                    placeholder={selectedMethod.needs} />
-                </div>
+                  <div className="hp-list">
+                    {cancelling.bookings.map((b, i) => {
+                      const on = chosen.includes(b._id)
+                      return (
+                        <button key={b._id}
+                          className={'hp-row' + (on ? ' hp-row-on' : '')}
+                          onClick={() => toggleHour(b._id)}>
+                          <span className={'hp-box' + (on ? ' hp-box-on' : '')}>
+                            {on && <Icon name="check" size={12} />}
+                          </span>
+                          <span className="hp-num">{i + 1}</span>
+                          <span className="hp-time">{b.slot}</span>
+                          <span className="hp-price">₹{b.price}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {partial && chosen.length > 0 && (
+                    <p className="hp-note">
+                      <Icon name="info" size={14} />
+                      {cancelling.count - chosen.length} hour
+                      {cancelling.count - chosen.length > 1 ? 's' : ''} will stay booked.
+                    </p>
+                  )}
+                </>
               )}
 
-              <p className="rf-note">
-                Refund Processed — The Receipt Is Saved In The My Bookings
-                And Stays Available In Your Cancelled Tab.
-              </p>
+              {cancelling.payAtVenue ? (
+                <>
+                  <div className="rf-amount-card">
+                    <p className="rf-amount-label">Nothing to refund</p>
+                    <p className="rf-amount">₹0</p>
+                    <p className="rf-amount-sub">
+                      You had not paid for this reservation — {cancelling.first.turf?.name}
+                      {' · '}{prettyDate(cancelling.date)}
+                    </p>
+                  </div>
 
-              <button className="btn-primary" disabled={busy}
-                onClick={confirmCancel}>
-                {busy ? 'Processing Refund…'
-                  : `Cancel & Refund ₹${cancelling.total.toLocaleString('en-IN')}`}
-              </button>
-              <button className="btn-ghost" disabled={busy}
-                onClick={() => setCancelling(null)}>
-                Keep My Booking
-              </button>
+                  <p className="rf-note">
+                    Cancelling releases {chosen.length === 1 ? 'this hour' : 'these hours'} so
+                    other players can book {chosen.length === 1 ? 'it' : 'them'}.
+                  </p>
+
+                  {error && <p className="error">{error}</p>}
+
+                  <button className="btn-primary" disabled={busy || !chosen.length}
+                    onClick={confirmCancel}>
+                    {busy ? 'Cancelling…'
+                      : `Cancel ${chosen.length} hour${chosen.length > 1 ? 's' : ''}`}
+                  </button>
+                  <button className="btn-ghost" disabled={busy} onClick={() => setCancelling(null)}>
+                    Keep it
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="rf-amount-card">
+                    <p className="rf-amount-label">Refund amount</p>
+                    <p className="rf-amount">₹{chosenTotal.toLocaleString('en-IN')}</p>
+                    <p className="rf-amount-sub">
+                      {cancelling.first.turf?.name} · {prettyDate(cancelling.date)}
+                      {' · '}{chosen.length} hour{chosen.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+
+                  <p className="rf-section-label">Where should we send the refund?</p>
+                  <div className="rf-methods">
+                    {REFUND_METHODS.map(m => (
+                      <button key={m.id}
+                        className={'rf-method' + (method === m.id ? ' rf-method-on' : '')}
+                        onClick={() => { setMethod(m.id); setDetailsInput(''); setBankErrs({}) }}>
+                        <span className="rf-method-icon"><Icon name={m.icon} size={19} /></span>
+                        <div className="rf-method-text">
+                          <p className="rf-method-label">{m.label}</p>
+                          <p className="rf-method-sub">{m.sub}</p>
+                        </div>
+                        <span className={'rf-radio' + (method === m.id ? ' rf-radio-on' : '')} />
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedMethod?.needs === 'upi' && (
+                    <div className="rf-input-wrap">
+                      <label className="rf-input-label">UPI ID</label>
+                      <input value={detailsInput}
+                        onChange={e => setDetailsInput(e.target.value)}
+                        placeholder="yourname@paytm" />
+                    </div>
+                  )}
+
+                  {selectedMethod?.needs === 'bank' && (
+                    <div className="rf-bank">
+                      <BankFields value={bankDetails} onChange={setBankDetails}
+                        errors={bankErrs} showConfirm mode="bank" />
+                    </div>
+                  )}
+
+                  <p className="rf-note">
+                    {method === 'wallet'
+                      ? 'Wallet refunds are instant and can be used on your next booking.'
+                      : 'Demo refund — the receipt is stored and stays in your Cancelled tab.'}
+                  </p>
+
+                  {error && <p className="error">{error}</p>}
+
+                  <button className="btn-primary" disabled={busy || !chosen.length}
+                    onClick={confirmCancel}>
+                    {busy ? 'Processing…'
+                      : `Cancel & refund ₹${chosenTotal.toLocaleString('en-IN')}`}
+                  </button>
+                  <button className="btn-ghost" disabled={busy} onClick={() => setCancelling(null)}>
+                    Keep my booking
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ REFUND RECEIPT — right after cancelling ══ */}
+      {/* ══ REFUND RECEIPT ══ */}
       {receipt && (
         <div className="overlay" onClick={() => setReceipt(null)}>
           <div className="sheet sheet-short" onClick={e => e.stopPropagation()}>
             <div className="sheet-body" style={{ textAlign: 'center' }}>
               <div className="rf-done-icon"><Icon name="undo" size={28} /></div>
-              <h2 style={{ marginBottom: 4 }}>Refund Processed</h2>
+              <h2 style={{ marginBottom: 4 }}>Refund processed</h2>
               <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
-                Your Booking Is Cancelled And The Slots Are Free Again.
+                {receipt.slotCount} hour{receipt.slotCount > 1 ? 's' : ''} cancelled and
+                released for other players.
               </p>
 
               <div className="confirm-card" style={{ textAlign: 'left' }}>
@@ -326,10 +492,10 @@ export default function MyBookings({ user }) {
                     <span className="ticket-amount">₹{receipt.amount?.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="ticket-detail-row">
-                    <span>Hours Refunded</span><span>{receipt.slotCount}</span>
+                    <span>Hours refunded</span><span>{receipt.slotCount}</span>
                   </div>
                   <div className="ticket-detail-row">
-                    <span>Refund To</span><span>{receipt.refundMethod}</span>
+                    <span>Refund to</span><span>{receipt.refundMethod}</span>
                   </div>
                   {receipt.refundDetails && (
                     <div className="ticket-detail-row">
@@ -337,7 +503,7 @@ export default function MyBookings({ user }) {
                     </div>
                   )}
                   <div className="ticket-detail-row">
-                    <span>Expected By</span><span>{receipt.expectedBy}</span>
+                    <span>Expected by</span><span>{receipt.expectedBy}</span>
                   </div>
                   <div className="ticket-detail-row">
                     <span>Status</span>
@@ -348,7 +514,7 @@ export default function MyBookings({ user }) {
 
               <button className="btn-primary"
                 onClick={() => { setReceipt(null); setTab('cancelled') }}>
-                View In Cancelled
+                View in Cancelled
               </button>
               <button className="btn-ghost" onClick={() => setReceipt(null)}>Done</button>
             </div>

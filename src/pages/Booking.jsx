@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchTurf, fetchBookedSlots, demoPay } from '../utils/api'
+import { fetchTurf, fetchBookedSlots, demoPay, fetchWallet } from '../utils/api'
 import { generateSlots, getNext7Days, isPastSlot, prettyDate } from '../utils/slots'
 import { priceForSlot, totalForSlots } from '../utils/pricing'
+import BankFields from '../components/BankFields'
 import Icon from '../components/Icon'
 
-const BANKS = ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Bank']
-const WALLETS = ['Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay']
 const MODES = [
+  { id: 'turfwallet', label: 'Wallet',      icon: 'wallet' },
   { id: 'card',       label: 'Card',        icon: 'card' },
   { id: 'upi',        label: 'UPI',         icon: 'phone' },
-  { id: 'netbanking', label: 'Net Banking', icon: 'bank' },
-  { id: 'wallet',     label: 'Wallet',      icon: 'wallet' }
+  { id: 'netbanking', label: 'Net Banking', icon: 'bank' }
 ]
 
 export default function Booking({ user }) {
@@ -26,26 +25,26 @@ export default function Booking({ user }) {
   const [picked, setPicked] = useState([])
   const [error, setError] = useState('')
 
+  const [walletBal, setWalletBal] = useState(0)
   const [showPay, setShowPay] = useState(false)
-  const [mode, setMode] = useState('card')
+  const [mode, setMode] = useState('turfwallet')
   const [cardName, setCardName] = useState(user.name)
   const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242')
   const [expiry, setExpiry] = useState('12/29')
   const [cvv, setCvv] = useState('123')
   const [upiId, setUpiId] = useState('')
-  const [bank, setBank] = useState(BANKS[0])
-  const [wallet, setWallet] = useState(WALLETS[0])
+  const [bankDetails, setBankDetails] = useState({})
   const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
     fetchTurf(id).then(setTurf).catch(e => setError(e.message))
+    fetchWallet(user.id).then(r => setWalletBal(r.balance)).catch(() => {})
   }, [id])
 
   useEffect(() => {
     if (!turf) return
     fetchBookedSlots(turf._id, date)
       .then(r => {
-        // new shape { booked, blocked, all } — old shape was a plain array
         if (Array.isArray(r)) { setTaken(r); setBlockedInfo([]) }
         else { setTaken(r.all || []); setBlockedInfo(r.blocked || []) }
       })
@@ -57,6 +56,8 @@ export default function Booking({ user }) {
   const slots = generateSlots(turf.openTime, turf.closeTime)
   const total = totalForSlots(turf, picked)
   const closed = turf.isOpen === false
+  const isVenue = turf.paymentMode === 'venue'
+  const walletShort = walletBal < total
 
   function toggle(slot) {
     setPicked(p => p.includes(slot) ? p.filter(s => s !== slot) : [...p, slot])
@@ -65,15 +66,24 @@ export default function Booking({ user }) {
   const sorted = [...picked].sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
 
   async function pay() {
-    setProcessing(true); setError('')
+    setProcessing(true)
+    setError('')
     setTimeout(async () => {
       try {
         const result = await demoPay({
           turfId: turf._id, date, slots: sorted, userId: user.id,
-          paymentMode: mode, cardNumber, upiId, bank, wallet
+          paymentMode: mode,
+          cardNumber, upiId,
+          bank: bankDetails.bankName,
+          accountNumber: bankDetails.accountNumber,
+          ifsc: bankDetails.ifsc,
+          accountName: bankDetails.accountName
         })
         navigate('/confirmation', { state: result })
-      } catch (err) { setError(err.message); setProcessing(false) }
+      } catch (err) {
+        setError(err.message)
+        setProcessing(false)
+      }
     }, 1600)
   }
 
@@ -99,6 +109,18 @@ export default function Booking({ user }) {
             <p className="bk-closed-title">This ground is closed</p>
             <p className="bk-closed-sub">
               {turf.closedNote || 'The owner has paused bookings. Check back soon.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isVenue && !closed && (
+        <div className="bk-venue">
+          <Icon name="wallet" size={19} />
+          <div>
+            <p className="bk-venue-title">Pay at the ground</p>
+            <p className="bk-venue-sub">
+              Reserve your hours free now, and pay the owner directly when you arrive.
             </p>
           </div>
         </div>
@@ -186,7 +208,7 @@ export default function Booking({ user }) {
             </div>
             <div className="bk-bar-bottom">
               <div>
-                <p className="bk-bar-tlabel">Total</p>
+                <p className="bk-bar-tlabel">{isVenue ? 'Due at ground' : 'Total'}</p>
                 <p className="bk-bar-total">₹{total.toLocaleString('en-IN')}</p>
                 <p className="bk-bar-calc">
                   {picked.length} hour{picked.length > 1 ? 's' : ''}
@@ -194,7 +216,7 @@ export default function Booking({ user }) {
                 </p>
               </div>
               <button className="bk-pay" onClick={() => { setError(''); setShowPay(true) }}>
-                Continue
+                {isVenue ? 'Reserve' : 'Continue'}
               </button>
             </div>
           </div>
@@ -205,14 +227,16 @@ export default function Booking({ user }) {
         <div className="overlay">
           <div className="pay-card">
             <div className="pay-head">
-              <h2>Complete payment</h2>
+              <h2>{isVenue ? 'Confirm reservation' : 'Complete payment'}</h2>
               <button className="pay-close" onClick={() => setShowPay(false)}>
                 <Icon name="close" size={14} />
               </button>
             </div>
 
             <div className="pay-summary">
-              <div className="pay-sum-row"><span>{turf.name}</span><span>{prettyDate(date)}</span></div>
+              <div className="pay-sum-row">
+                <span>{turf.name}</span><span>{prettyDate(date)}</span>
+              </div>
               <div className="pay-slot-chips">
                 {sorted.map(s => (
                   <span key={s} className="pay-chip">
@@ -226,55 +250,108 @@ export default function Booking({ user }) {
               </div>
             </div>
 
-            <div className="demo-note">Demo payment — no real money is charged</div>
+            {isVenue ? (
+              <>
+                <div className="bk-venue-box">
+                  <Icon name="info" size={18} />
+                  <div>
+                    <p className="bk-venue-box-title">
+                      ₹{total.toLocaleString('en-IN')} due at the ground
+                    </p>
+                    <p className="bk-venue-box-sub">
+                      Nothing is charged now. Show your booking ID and pay the owner
+                      when you arrive.
+                    </p>
+                  </div>
+                </div>
 
-            <p className="pay-mode-label">Payment method</p>
-            <div className="pay-mode-grid">
-              {MODES.map(m => (
-                <button key={m.id} className={'pay-mode-btn' + (mode === m.id ? ' pay-mode-active' : '')}
-                  onClick={() => setMode(m.id)}>
-                  <Icon name={m.icon} size={19} className="pay-mode-icon" />
-                  <p style={{ fontSize: 11.5, marginTop: 5, fontWeight: 600 }}>{m.label}</p>
+                {error && <p className="error">{error}</p>}
+                <button className="btn-primary" disabled={processing} onClick={pay}>
+                  {processing ? 'Reserving…' : 'Confirm reservation'}
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="demo-note">Demo payment — no real money is charged</div>
 
-            {mode === 'card' && (<>
-              <label className="pay-field-label">Name on card</label>
-              <input value={cardName} onChange={e => setCardName(e.target.value)} />
-              <label className="pay-field-label">Card number</label>
-              <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} maxLength={19} />
-              <div className="two-col">
-                <div><label className="pay-field-label">Expiry</label>
-                  <input value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY" /></div>
-                <div><label className="pay-field-label">CVV</label>
-                  <input value={cvv} onChange={e => setCvv(e.target.value)} maxLength={4} /></div>
-              </div>
-            </>)}
-            {mode === 'upi' && (<>
-              <label className="pay-field-label">UPI ID</label>
-              <input value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="yourname@paytm" />
-            </>)}
-            {mode === 'netbanking' && (<>
-              <label className="pay-field-label">Select your bank</label>
-              <select value={bank} onChange={e => setBank(e.target.value)}>
-                {BANKS.map(b => <option key={b}>{b}</option>)}
-              </select>
-            </>)}
-            {mode === 'wallet' && (<>
-              <label className="pay-field-label">Choose wallet</label>
-              <div className="wallet-grid">
-                {WALLETS.map(w => (
-                  <button key={w} className={'wallet-btn' + (wallet === w ? ' wallet-active' : '')}
-                    onClick={() => setWallet(w)}>{w}</button>
-                ))}
-              </div>
-            </>)}
+                <p className="pay-mode-label">Payment method</p>
+                <div className="pay-mode-grid">
+                  {MODES.map(m => {
+                    const short = m.id === 'turfwallet' && walletShort
+                    return (
+                      <button key={m.id} disabled={short}
+                        className={'pay-mode-btn'
+                          + (mode === m.id ? ' pay-mode-active' : '')
+                          + (short ? ' pay-mode-short' : '')}
+                        onClick={() => setMode(m.id)}>
+                        <Icon name={m.icon} size={19} className="pay-mode-icon" />
+                        <p style={{ fontSize: 11.5, marginTop: 5, fontWeight: 600 }}>{m.label}</p>
+                        {m.id === 'turfwallet' && (
+                          <p className="pay-mode-bal">₹{walletBal.toLocaleString('en-IN')}</p>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
 
-            {error && <p className="error">{error}</p>}
-            <button className="btn-primary" disabled={processing} onClick={pay}>
-              {processing ? 'Processing…' : `Pay ₹${total.toLocaleString('en-IN')}`}
-            </button>
+                {mode === 'turfwallet' && (
+                  <div className={'wl-pay-box' + (walletShort ? ' wl-pay-short' : '')}>
+                    <div className="wl-pay-row">
+                      <span>Wallet balance</span>
+                      <b>₹{walletBal.toLocaleString('en-IN')}</b>
+                    </div>
+                    <div className="wl-pay-row">
+                      <span>This booking</span>
+                      <b>−₹{total.toLocaleString('en-IN')}</b>
+                    </div>
+                    <div className="wl-pay-row wl-pay-after">
+                      <span>Balance after</span>
+                      <b>₹{Math.max(0, walletBal - total).toLocaleString('en-IN')}</b>
+                    </div>
+                    {walletShort && (
+                      <button className="wl-topup-link" onClick={() => navigate('/wallet')}>
+                        Short by ₹{(total - walletBal).toLocaleString('en-IN')} — add money
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {mode === 'card' && (<>
+                  <label className="pay-field-label">Name on card</label>
+                  <input value={cardName} onChange={e => setCardName(e.target.value)} />
+                  <label className="pay-field-label">Card number</label>
+                  <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} maxLength={19} />
+                  <div className="two-col">
+                    <div>
+                      <label className="pay-field-label">Expiry</label>
+                      <input value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY" />
+                    </div>
+                    <div>
+                      <label className="pay-field-label">CVV</label>
+                      <input value={cvv} onChange={e => setCvv(e.target.value)} maxLength={4} />
+                    </div>
+                  </div>
+                </>)}
+
+                {mode === 'upi' && (<>
+                  <label className="pay-field-label">UPI ID</label>
+                  <input value={upiId} onChange={e => setUpiId(e.target.value)}
+                    placeholder="yourname@paytm" />
+                </>)}
+
+                {mode === 'netbanking' && (
+                  <BankFields value={bankDetails} onChange={setBankDetails}
+                    errors={{}} mode="bank" />
+                )}
+
+                {error && <p className="error">{error}</p>}
+                <button className="btn-primary"
+                  disabled={processing || (mode === 'turfwallet' && walletShort)}
+                  onClick={pay}>
+                  {processing ? 'Processing…' : `Pay ₹${total.toLocaleString('en-IN')}`}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

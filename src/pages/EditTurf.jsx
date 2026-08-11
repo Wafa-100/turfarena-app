@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf, updateTurf } from '../utils/api'
 import { geocodeAddress, buildMapUrl } from '../utils/geocode'
+import TimeSelect from '../components/TimeSelect'
 
 export default function EditTurf({ user }) {
   const { id } = useParams()
@@ -132,8 +133,14 @@ export default function EditTurf({ user }) {
         <input type="number" value={f.price} onChange={e => upd('price', e.target.value)} required />
 
         <div className="two-col">
-          <div><label>Opens At</label><input value={f.openTime} onChange={e => upd('openTime', e.target.value)} /></div>
-          <div><label>Closes At</label><input value={f.closeTime} onChange={e => upd('closeTime', e.target.value)} /></div>
+          <div>
+            <label>Opens at</label>
+            <TimeSelect value={f.openTime} onChange={v => upd('openTime', v)} />
+          </div>
+          <div>
+            <label>Closes at</label>
+            <TimeSelect value={f.closeTime} onChange={v => upd('closeTime', v)} />
+          </div>
         </div>
 
         <div className="two-col">

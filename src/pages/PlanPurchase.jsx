@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { purchasePlan } from '../utils/api'
+import { purchasePlan, fetchWallet } from '../utils/api'
+import BankFields from '../components/BankFields'
 import Icon from '../components/Icon'
 
 const PLANS = [
@@ -41,43 +42,55 @@ const PLANS = [
 ]
 
 const MODES = [
+  { id: 'turfwallet', label: 'Wallet',      icon: 'wallet' },
   { id: 'card',       label: 'Card',        icon: 'card' },
   { id: 'upi',        label: 'UPI',         icon: 'phone' },
-  { id: 'netbanking', label: 'Net Banking', icon: 'bank' },
-  { id: 'wallet',     label: 'Wallet',      icon: 'wallet' }
+  { id: 'netbanking', label: 'Net Banking', icon: 'bank' }
 ]
-const BANKS = ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Bank']
-const WALLETS = ['Paytm', 'PhonePe', 'Google Pay', 'Amazon Pay']
 
 export default function PlanPurchase({ user }) {
   const navigate = useNavigate()
   const [picked, setPicked] = useState(PLANS[1])
   const [showPay, setShowPay] = useState(false)
-  const [mode, setMode] = useState('card')
+  const [mode, setMode] = useState('turfwallet')
   const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242')
   const [expiry, setExpiry] = useState('12/29')
   const [cvv, setCvv] = useState('123')
   const [upiId, setUpiId] = useState('')
-  const [bank, setBank] = useState(BANKS[0])
-  const [wallet, setWallet] = useState(WALLETS[0])
+  const [bankDetails, setBankDetails] = useState({})
+  const [walletBal, setWalletBal] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
 
+  useEffect(() => {
+    fetchWallet(user.id).then(r => setWalletBal(r.balance)).catch(() => {})
+  }, [])
+
+  const walletShort = walletBal < picked.price
+
   async function pay() {
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     setTimeout(async () => {
       try {
         const r = await purchasePlan({
-          userId: user.id, planType: picked.id,
-          paymentMethod: mode, cardNumber, upiId, bank, wallet
+          userId: user.id,
+          planType: picked.id,
+          paymentMethod: mode,
+          cardNumber,
+          upiId,
+          bank: bankDetails.bankName
         })
-        setDone(r); setShowPay(false)
-      } catch (e) { setError(e.message); setBusy(false) }
+        setDone(r)
+        setShowPay(false)
+      } catch (e) {
+        setError(e.message)
+        setBusy(false)
+      }
     }, 1600)
   }
 
-  /* ── Success ── */
   if (done) {
     const exp = new Date(done.expiryDate).toLocaleDateString('en-IN', {
       day: 'numeric', month: 'long', year: 'numeric'
@@ -95,7 +108,9 @@ export default function PlanPurchase({ user }) {
           </div>
           <div className="pp-done-row"><span>Grounds allowed</span><b>{done.plan.turfLimit}</b></div>
           <div className="pp-done-row"><span>Active until</span><b>{exp}</b></div>
-          <div className="pp-done-row"><span>Paid</span><b>₹{done.plan.price.toLocaleString('en-IN')}</b></div>
+          <div className="pp-done-row">
+            <span>Paid</span><b>₹{done.plan.price.toLocaleString('en-IN')}</b>
+          </div>
           <div className="pp-done-row">
             <span>Reference</span><b className="mono">{done.plan.paymentId}</b>
           </div>
@@ -115,8 +130,7 @@ export default function PlanPurchase({ user }) {
         <p className="pp-eyebrow">For ground owners</p>
         <h1 className="pp-title">Put your ground<br />in front of players</h1>
         <p className="pp-sub">
-          Choose a plan to start listing. Every plan includes unlimited bookings —
-          you keep 100% of what players pay.
+          Choose a plan to start listing. Every plan includes unlimited bookings.
         </p>
       </header>
 
@@ -179,13 +193,14 @@ export default function PlanPurchase({ user }) {
         </button>
       </div>
 
-      {/* ── Payment sheet ── */}
       {showPay && (
         <div className="overlay" onClick={() => !busy && setShowPay(false)}>
           <div className="pay-card" onClick={e => e.stopPropagation()}>
             <div className="pay-head">
               <h2>Confirm your plan</h2>
-              <button className="pay-close" disabled={busy} onClick={() => setShowPay(false)}>✕</button>
+              <button className="pay-close" disabled={busy} onClick={() => setShowPay(false)}>
+                <Icon name="close" size={14} />
+              </button>
             </div>
 
             <div className="pp-pay-summary">
@@ -201,48 +216,73 @@ export default function PlanPurchase({ user }) {
 
             <p className="pay-mode-label">Payment method</p>
             <div className="pp-modes">
-              {MODES.map(m => (
-                <button key={m.id}
-                  className={'pp-mode' + (mode === m.id ? ' pp-mode-on' : '')}
-                  onClick={() => setMode(m.id)}>
-                  <Icon name={m.icon} size={19} className="pp-mode-icon" />
-                  <span>{m.label}</span>
-                </button>
-              ))}
+              {MODES.map(m => {
+                const short = m.id === 'turfwallet' && walletShort
+                return (
+                  <button key={m.id} disabled={short}
+                    className={'pp-mode' + (mode === m.id ? ' pp-mode-on' : '')
+                      + (short ? ' pay-mode-short' : '')}
+                    onClick={() => setMode(m.id)}>
+                    <Icon name={m.icon} size={19} className="pp-mode-icon" />
+                    <span>{m.label}</span>
+                    {m.id === 'turfwallet' && (
+                      <span className="pp-mode-bal">₹{walletBal.toLocaleString('en-IN')}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+
+            {mode === 'turfwallet' && (
+              <div className={'wl-pay-box' + (walletShort ? ' wl-pay-short' : '')}>
+                <div className="wl-pay-row">
+                  <span>Wallet balance</span><b>₹{walletBal.toLocaleString('en-IN')}</b>
+                </div>
+                <div className="wl-pay-row">
+                  <span>This plan</span><b>−₹{picked.price.toLocaleString('en-IN')}</b>
+                </div>
+                <div className="wl-pay-row wl-pay-after">
+                  <span>Balance after</span>
+                  <b>₹{Math.max(0, walletBal - picked.price).toLocaleString('en-IN')}</b>
+                </div>
+                {walletShort && (
+                  <button className="wl-topup-link" onClick={() => navigate('/wallet')}>
+                    Short by ₹{(picked.price - walletBal).toLocaleString('en-IN')} — add money
+                  </button>
+                )}
+              </div>
+            )}
 
             {mode === 'card' && (<>
               <label className="pay-field-label">Card number</label>
               <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} maxLength={19} />
               <div className="two-col">
-                <div><label className="pay-field-label">Expiry</label>
-                  <input value={expiry} onChange={e => setExpiry(e.target.value)} /></div>
-                <div><label className="pay-field-label">CVV</label>
-                  <input value={cvv} onChange={e => setCvv(e.target.value)} maxLength={4} /></div>
+                <div>
+                  <label className="pay-field-label">Expiry</label>
+                  <input value={expiry} onChange={e => setExpiry(e.target.value)} />
+                </div>
+                <div>
+                  <label className="pay-field-label">CVV</label>
+                  <input value={cvv} onChange={e => setCvv(e.target.value)} maxLength={4} />
+                </div>
               </div>
             </>)}
+
             {mode === 'upi' && (<>
               <label className="pay-field-label">UPI ID</label>
               <input value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="name@bank" />
             </>)}
-            {mode === 'netbanking' && (<>
-              <label className="pay-field-label">Bank</label>
-              <select value={bank} onChange={e => setBank(e.target.value)}>
-                {BANKS.map(b => <option key={b}>{b}</option>)}
-              </select>
-            </>)}
-            {mode === 'wallet' && (
-              <div className="wallet-grid">
-                {WALLETS.map(w => (
-                  <button key={w} className={'wallet-btn' + (wallet === w ? ' wallet-active' : '')}
-                    onClick={() => setWallet(w)}>{w}</button>
-                ))}
-              </div>
+
+            {mode === 'netbanking' && (
+              <BankFields value={bankDetails} onChange={setBankDetails}
+                errors={{}} mode="bank" />
             )}
 
             {error && <p className="error">{error}</p>}
 
-            <button className="pp-cta" disabled={busy} onClick={pay} style={{ marginTop: 16 }}>
+            <button className="pp-cta"
+              disabled={busy || (mode === 'turfwallet' && walletShort)}
+              onClick={pay} style={{ marginTop: 16 }}>
               {busy ? 'Activating…' : `Pay ₹${picked.price.toLocaleString('en-IN')}`}
             </button>
           </div>

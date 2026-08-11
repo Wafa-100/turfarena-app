@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  fetchTurf, setTurfStatus, setTurfPricing,
+  fetchTurf, setTurfStatus, setTurfPricing, setTurfPaymentMode,
   fetchBlocks, createBlocks, removeBlock, fetchBookedSlots
 } from '../utils/api'
 import { generateSlots, getNext7Days, prettyDate, isPastSlot } from '../utils/slots'
 import { priceForSlot, BAND_PRESETS } from '../utils/pricing'
+import BankFields, { validateBank } from '../components/BankFields'
+import TimeSelect from '../components/TimeSelect'
 import Icon from '../components/Icon'
 
 const REASONS = ['Offline booking', 'Phone booking', 'Maintenance', 'Private event', 'Other']
@@ -19,6 +21,7 @@ export default function ManageGround({ user }) {
   const [tab, setTab] = useState('slots')
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  const [busy, setBusy] = useState(false)
 
   // slots
   const [date, setDate] = useState(days[0].iso)
@@ -27,7 +30,6 @@ export default function ManageGround({ user }) {
   const [picked, setPicked] = useState([])
   const [reason, setReason] = useState(REASONS[0])
   const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
 
   // status
   const [closedNote, setClosedNote] = useState('')
@@ -37,6 +39,11 @@ export default function ManageGround({ user }) {
   const [flatPrice, setFlatPrice] = useState('')
   const [bands, setBands] = useState([])
 
+  // payout
+  const [payMode, setPayMode] = useState('venue')
+  const [payout, setPayout] = useState({ businessType: 'individual' })
+  const [payoutErrs, setPayoutErrs] = useState({})
+
   useEffect(() => {
     fetchTurf(id).then(t => {
       if (!t.owner || String(t.owner) !== String(user.id)) { navigate('/'); return }
@@ -44,7 +51,11 @@ export default function ManageGround({ user }) {
       setClosedNote(t.closedNote || '')
       setMode(t.pricingMode || 'flat')
       setFlatPrice(String(t.price || ''))
-      setBands(t.priceBands?.length ? t.priceBands : BAND_PRESETS.map(b => ({ ...b, price: t.price })))
+      setBands(t.priceBands?.length
+        ? t.priceBands
+        : BAND_PRESETS.map(b => ({ ...b, price: t.price })))
+      setPayMode(t.paymentMode || 'venue')
+      if (t.payout) setPayout({ businessType: 'individual', ...t.payout })
     }).catch(e => setError(e.message))
   }, [id])
 
@@ -61,6 +72,9 @@ export default function ManageGround({ user }) {
 
   const slots = generateSlots(turf.openTime, turf.closeTime)
   const blockedMap = Object.fromEntries(blocks.map(b => [b.slot, b]))
+  const freeSlots = slots.filter(s =>
+    !booked.includes(s) && !blockedMap[s] && !isPastSlot(date, s)
+  )
 
   function flash(msg) { setOk(msg); setTimeout(() => setOk(''), 2600) }
 
@@ -86,12 +100,15 @@ export default function ManageGround({ user }) {
   }
 
   async function blockWholeDay() {
-    const free = slots.filter(s => !booked.includes(s) && !blockedMap[s])
-    if (!free.length) return
-    setBusy(true)
+    if (!freeSlots.length) { setError('No bookable hours left on this day'); return }
+    setBusy(true); setError('')
     try {
-      await createBlocks({ turfId: id, userId: user.id, date, slots: free, reason: 'Maintenance', note })
-      loadDay(); flash('Whole day blocked')
+      await createBlocks({
+        turfId: id, userId: user.id, date,
+        slots: freeSlots, reason: 'Maintenance', note
+      })
+      loadDay()
+      flash(`${freeSlots.length} hour${freeSlots.length > 1 ? 's' : ''} blocked`)
     } catch (e) { setError(e.message) }
     finally { setBusy(false) }
   }
@@ -129,10 +146,36 @@ export default function ManageGround({ user }) {
     finally { setBusy(false) }
   }
 
+  /* ── payout ── */
+  async function savePayout() {
+    setBusy(true); setError('')
+    try {
+      if (payMode === 'online') {
+        const e = validateBank({ ...payout, confirmNumber: payout.accountNumber }, 'full')
+        setPayoutErrs(e)
+        if (Object.keys(e).length) {
+          setError('Please fix the highlighted fields')
+          setBusy(false)
+          return
+        }
+      }
+      const updated = await setTurfPaymentMode(id, {
+        userId: user.id,
+        paymentMode: payMode,
+        payout: payMode === 'online' ? payout : undefined
+      })
+      setTurf(updated)
+      setPayoutErrs({})
+      flash(payMode === 'online' ? 'Online payments enabled' : 'Switched to pay at ground')
+    } catch (e) { setError(e.message) }
+    finally { setBusy(false) }
+  }
+
   const TABS = [
     { id: 'slots',   label: 'Slots',   icon: 'calendar' },
     { id: 'status',  label: 'Status',  icon: 'bolt' },
-    { id: 'pricing', label: 'Pricing', icon: 'rupee' }
+    { id: 'pricing', label: 'Pricing', icon: 'rupee' },
+    { id: 'payout',  label: 'Payout',  icon: 'card' }
   ]
 
   return (
@@ -216,14 +259,18 @@ export default function ManageGround({ user }) {
                   <span className="mg-slot-price">₹{priceForSlot(turf, s)}</span>
                   {isPaid && <span className="mg-slot-tag">Booked</span>}
                   {block && <span className="mg-slot-tag">{block.reason}</span>}
+                  {!isPaid && !block && past && <span className="mg-slot-tag">Time passed</span>}
                   {block && <span className="mg-slot-x"><Icon name="close" size={11} /></span>}
                 </button>
               )
             })}
           </div>
 
-          <button className="mg-day-btn" onClick={blockWholeDay} disabled={busy}>
-            Block every remaining hour on {prettyDate(date)}
+          <button className="mg-day-btn" onClick={blockWholeDay}
+            disabled={busy || freeSlots.length === 0}>
+            {freeSlots.length === 0
+              ? 'No bookable hours left today'
+              : `Block all ${freeSlots.length} remaining hour${freeSlots.length > 1 ? 's' : ''}`}
           </button>
 
           {picked.length > 0 && (
@@ -232,7 +279,7 @@ export default function ManageGround({ user }) {
                 <p className="mg-drawer-count">
                   {picked.length} hour{picked.length > 1 ? 's' : ''} selected
                 </p>
-                <p className="mg-drawer-slots">{picked.sort().join(' · ')}</p>
+                <p className="mg-drawer-slots">{[...picked].sort().join(' · ')}</p>
 
                 <label className="mg-label">Why?</label>
                 <select value={reason} onChange={e => setReason(e.target.value)}>
@@ -277,9 +324,7 @@ export default function ManageGround({ user }) {
 
           {turf.isOpen !== false ? (
             <>
-              <label className="mg-label">
-                Message for players (optional)
-              </label>
+              <label className="mg-label">Message for players (optional)</label>
               <input value={closedNote} onChange={e => setClosedNote(e.target.value)}
                 placeholder="e.g. Closed for resurfacing until Monday" />
               <p className="mg-hint" style={{ marginTop: 0 }}>
@@ -339,13 +384,11 @@ export default function ManageGround({ user }) {
                   <div className="mg-band-row">
                     <div>
                       <label className="mg-mini-label">From</label>
-                      <input value={b.from} onChange={e => updBand(i, 'from', e.target.value)}
-                        placeholder="17:00" />
+                      <TimeSelect value={b.from} onChange={v => updBand(i, 'from', v)} />
                     </div>
                     <div>
                       <label className="mg-mini-label">To</label>
-                      <input value={b.to} onChange={e => updBand(i, 'to', e.target.value)}
-                        placeholder="21:00" />
+                      <TimeSelect value={b.to} onChange={v => updBand(i, 'to', v)} />
                     </div>
                     <div>
                       <label className="mg-mini-label">₹ / hour</label>
@@ -366,7 +409,9 @@ export default function ManageGround({ user }) {
                   {slots.map(s => (
                     <div key={s} className="mg-preview-cell">
                       <span>{s.split(' - ')[0]}</span>
-                      <b>₹{priceForSlot({ ...turf, pricingMode: 'bands', priceBands: bands }, s)}</b>
+                      <b>₹{priceForSlot(
+                        { ...turf, pricingMode: 'bands', priceBands: bands }, s
+                      )}</b>
                     </div>
                   ))}
                 </div>
@@ -376,6 +421,81 @@ export default function ManageGround({ user }) {
 
           <button className="btn-primary" disabled={busy} onClick={savePricing}>
             {busy ? 'Saving…' : 'Save pricing'}
+          </button>
+        </>
+      )}
+
+      {/* ══ PAYOUT ══ */}
+      {tab === 'payout' && (
+        <>
+          <p className="mg-hint">
+            Choose how players pay for this ground. You can switch at any time —
+            existing bookings keep their original terms.
+          </p>
+
+          {turf.paymentMode === 'online' && turf.payout?.accountNumber && (
+            <div className="mg-payout-live">
+              <Icon name="check" size={16} />
+              <div>
+                <p className="mg-payout-live-title">Payouts set up</p>
+                <p className="mg-payout-live-sub">
+                  {turf.payout.bankName || 'Bank'} · ••••{turf.payout.accountNumber.slice(-4)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <button className={'pm-card' + (payMode === 'venue' ? ' pm-card-on' : '')}
+            onClick={() => setPayMode('venue')}>
+            <div className="pm-card-head">
+              <span className="pm-icon"><Icon name="wallet" size={22} /></span>
+              <div>
+                <p className="pm-title">Pay at the ground</p>
+                <p className="pm-sub">Players reserve free, then pay you in person</p>
+              </div>
+              <span className={'rf-radio' + (payMode === 'venue' ? ' rf-radio-on' : '')} />
+            </div>
+            <ul className="pm-points">
+              <li><Icon name="check" size={12} /> No bank details needed</li>
+              <li><Icon name="check" size={12} /> You keep 100% — no commission</li>
+              <li className="pm-minus"><Icon name="alert" size={12} /> More no-shows</li>
+            </ul>
+          </button>
+
+          <button className={'pm-card' + (payMode === 'online' ? ' pm-card-on' : '')}
+            onClick={() => setPayMode('online')}>
+            <div className="pm-card-head">
+              <span className="pm-icon pm-icon-alt"><Icon name="card" size={22} /></span>
+              <div>
+                <p className="pm-title">Online payment</p>
+                <p className="pm-sub">Players pay in the app, money reaches your bank</p>
+              </div>
+              <span className={'rf-radio' + (payMode === 'online' ? ' rf-radio-on' : '')} />
+            </div>
+            <ul className="pm-points">
+              <li><Icon name="check" size={12} /> Paid before they arrive</li>
+              <li><Icon name="check" size={12} /> Settled automatically</li>
+              <li className="pm-minus"><Icon name="info" size={12} /> 10% platform commission</li>
+            </ul>
+          </button>
+
+          {payMode === 'online' && (
+            <div className="pm-bank">
+              <p className="pm-bank-title">Payout details</p>
+              <p className="pm-bank-sub">
+                Razorpay needs these to send money to your account.
+              </p>
+              <BankFields
+                value={payout}
+                onChange={setPayout}
+                errors={payoutErrs}
+                mode="full"
+              />
+            </div>
+          )}
+
+          <button className="btn-primary" disabled={busy} onClick={savePayout}>
+            {busy ? 'Saving…' : 'Save payment settings'}
           </button>
         </>
       )}
