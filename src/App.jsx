@@ -12,12 +12,12 @@ import BookingConfirmation from './pages/BookingConfirmation'
 import MyBookings from './pages/MyBookings'
 import AddTurf from './pages/AddTurf'
 import EditTurf from './pages/EditTurf'
+import ManageGround from './pages/ManageGround'
 import PlanPurchase from './pages/PlanPurchase'
+import Wallet from './pages/Wallet'
 import Contact from './pages/Contact'
 import Profile from './pages/Profile'
 import AdminApp from './admin/AdminApp'
-import ManageGround from './pages/ManageGround'
-import Wallet from './pages/Wallet'
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(
@@ -46,20 +46,20 @@ export default function App() {
       <TopBar />
       <main className="screen">
         <Routes>
-          <Route path="/"               element={<Home user={user} />} />
-          <Route path="/turf/:id"       element={<TurfDetails user={user} />} />
-          <Route path="/book/:id"       element={<Booking user={user} />} />
-          <Route path="/confirmation"   element={<BookingConfirmation />} />
-          <Route path="/bookings"       element={<MyBookings user={user} />} />
-          <Route path="/add-turf"       element={<AddTurf user={user} />} />
-          <Route path="/edit-turf/:id"  element={<EditTurf user={user} />} />
-          <Route path="/plan"           element={<PlanPurchase user={user} />} />
-          <Route path="/contact"        element={<Contact user={user} />} />
+          <Route path="/"              element={<Home user={user} />} />
+          <Route path="/turf/:id"      element={<TurfDetails user={user} />} />
+          <Route path="/book/:id"      element={<Booking user={user} />} />
+          <Route path="/confirmation"  element={<BookingConfirmation />} />
+          <Route path="/bookings"      element={<MyBookings user={user} />} />
+          <Route path="/add-turf"      element={<AddTurf user={user} />} />
+          <Route path="/edit-turf/:id" element={<EditTurf user={user} />} />
+          <Route path="/manage/:id"    element={<ManageGround user={user} />} />
+          <Route path="/plan"          element={<PlanPurchase user={user} />} />
+          <Route path="/wallet"        element={<Wallet user={user} />} />
+          <Route path="/contact"       element={<Contact user={user} />} />
           <Route path="/profile"
             element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
-          <Route path="*"               element={<Navigate to="/" replace />} />
-          <Route path="/manage/:id" element={<ManageGround user={user} />} />
-          <Route path="/wallet" element={<Wallet user={user} />} />
+          <Route path="*"              element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <BottomNav />
