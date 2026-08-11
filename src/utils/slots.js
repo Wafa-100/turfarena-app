@@ -53,3 +53,28 @@ export function formatDateTime(value) {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 }
+
+export const SLOT_CANCEL_HOURS = 1
+
+export function slotStart(date, slot) {
+  const hour = parseInt(slot, 10)
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d, hour, 0, 0)
+}
+
+export function hoursUntilSlot(date, slot) {
+  return (slotStart(date, slot).getTime() - Date.now()) / 36e5
+}
+
+export function slotIsCancellable(date, slot) {
+  return hoursUntilSlot(date, slot) >= SLOT_CANCEL_HOURS
+}
+
+/* "2 hours", "45 minutes", "started" */
+export function timeUntil(date, slot) {
+  const h = hoursUntilSlot(date, slot)
+  if (h < 0) return 'started'
+  if (h < 1) return `${Math.round(h * 60)} minutes`
+  if (h < 24) return `${Math.floor(h)} hour${Math.floor(h) > 1 ? 's' : ''}`
+  return `${Math.floor(h / 24)} day${Math.floor(h / 24) > 1 ? 's' : ''}`
+}

@@ -116,3 +116,8 @@ export const setTurfPaymentMode = (id, body) =>
 
 export const fetchRefundForBooking = (bookingId) =>
   apiFetch('/api/bookings/refund/' + bookingId)
+
+export const fetchMyPlans = (userId) => apiFetch('/api/plans/my/' + userId)
+export const cancelPlan = (body) => apiFetch('/api/plans/cancel', { method: 'POST', body })
+export const selectPlanTurfs = (body) =>
+  apiFetch('/api/plans/select-turfs', { method: 'POST', body })

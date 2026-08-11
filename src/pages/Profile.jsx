@@ -310,6 +310,18 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
             <div className="pf-plan-fill"
               style={{ width: `${Math.min(100, (plan.turfsUsed / plan.plan.turfLimit) * 100)}%` }} />
           </div>
+          {plan?.needsSelection && (
+        <button className="pf-select-cta" onClick={() => navigate('/select-grounds')}>
+          <Icon name="alert" size={16} />
+          <div>
+            <p className="pf-select-title">Choose which grounds stay live</p>
+            <p className="pf-select-sub">
+              You have {plan.turfsUsed} listed but your plan covers {plan.plan.turfLimit}
+            </p>
+          </div>
+          <Icon name="chevron" size={16} />
+        </button>
+      )}
           <p className="pf-plan-usage">
             {plan.turfsUsed} of {plan.plan.turfLimit} grounds listed
           </p>
@@ -341,8 +353,18 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
                 <div className="pf-turf-mid">
                   <p className="pf-turf-name">{t.name}</p>
                   <p className="pf-turf-meta">
-                    <span className={'pf-dot' + (t.isOpen === false ? ' pf-dot-closed' : '')} />
-                    {t.isOpen === false ? 'Closed' : 'Open'} · {t.city} · ₹{t.price}/hr
+                    {t.pendingActivation ? (
+                      <span className="pf-badge pf-badge-wait">
+                        <Icon name="clock" size={10} /> Live in 24h
+                      </span>
+                    ) : t.notSelected ? (
+                      <span className="pf-badge pf-badge-off">Hidden</span>
+                    ) : (
+                      <span className={'pf-dot' + (t.isOpen === false ? ' pf-dot-closed' : '')} />
+                    )}
+                    {!t.pendingActivation && !t.notSelected &&
+                      (t.isOpen === false ? 'Closed · ' : 'Open · ')}
+                    {t.city} · ₹{t.price}/hr
                   </p>
                 </div>
                 <div className="pf-turf-actions">

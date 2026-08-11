@@ -99,7 +99,21 @@ export default function PlanPurchase({ user }) {
       <div className="pp-done">
         <div className="pp-done-mark"><Icon name="check" size={30} /></div>
         <h1 className="pp-done-title">You're all set</h1>
-        <p className="pp-done-sub">Your {done.plan.planType} plan is active.</p>
+       <p className="pp-done-sub">
+          Your {done.plan.planType} plan is active. Grounds you add will appear to
+          players in {done.activationHours || 24} hours.
+        </p>
+        {done.needsSelection && (
+          <div className="pl-warn" style={{ marginBottom: 16 }}>
+            <Icon name="alert" size={16} />
+            <div>
+              <p className="pl-warn-title">You have more grounds than this plan covers</p>
+              <p className="pl-warn-sub">
+                {done.turfsUsed} listed, {done.plan.turfLimit} allowed — choose which stay live.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="pp-done-card">
           <div className="pp-done-row">
@@ -116,9 +130,12 @@ export default function PlanPurchase({ user }) {
           </div>
         </div>
 
-        <button className="pp-cta" onClick={() => navigate('/add-turf')}>
-          List your first ground <Icon name="arrow" size={17} />
+        <button className="pp-cta"
+          onClick={() => navigate(done.needsSelection ? '/select-grounds' : '/add-turf')}>
+          {done.needsSelection ? 'Choose my grounds' : 'List your first ground'}
+          <Icon name="arrow" size={17} />
         </button>
+        
         <button className="btn-ghost" onClick={() => navigate('/')}>Back to home</button>
       </div>
     )
@@ -188,6 +205,16 @@ export default function PlanPurchase({ user }) {
         <p className="pp-foot-note">
           <Icon name="shield" size={14} /> Demo payment — no money is charged
         </p>
+        <div className="pp-terms">
+          <div className="pp-term">
+            <Icon name="clock" size={15} />
+            <span>Your grounds go live <b>24 hours</b> after purchase</span>
+          </div>
+          <div className="pp-term">
+            <Icon name="undo" size={15} />
+            <span>Cancel for a full refund within <b>24 hours</b> — locked after that</span>
+          </div>
+        </div>
         <button className="pp-cta" onClick={() => { setError(''); setShowPay(true) }}>
           Continue with {picked.name} — ₹{picked.price.toLocaleString('en-IN')}
         </button>
@@ -279,6 +306,13 @@ export default function PlanPurchase({ user }) {
             )}
 
             {error && <p className="error">{error}</p>}
+
+           <div className="pp-confirm-note">
+              <Icon name="alert" size={14} />
+              <span>
+                After 24 hours this plan cannot be cancelled or refunded.
+              </span>
+            </div>
 
             <button className="pp-cta"
               disabled={busy || (mode === 'turfwallet' && walletShort)}
