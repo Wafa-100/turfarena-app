@@ -78,3 +78,31 @@ export function timeUntil(date, slot) {
   if (h < 24) return `${Math.floor(h)} hour${Math.floor(h) > 1 ? 's' : ''}`
   return `${Math.floor(h / 24)} day${Math.floor(h / 24) > 1 ? 's' : ''}`
 }
+
+/* When a slot ends. "23:00 - 00:00" ends at midnight the next day. */
+export function slotEnd(date, slot) {
+  const endPart = slot.split(' - ')[1] || slot.split(' - ')[0]
+  let endHour = parseInt(endPart, 10)
+  const [y, m, d] = date.split('-').map(Number)
+  if (endHour === 0) return new Date(y, m - 1, d + 1, 0, 0, 0)
+  return new Date(y, m - 1, d, endHour, 0, 0)
+}
+
+export function slotIsOver(date, slot) {
+  return slotEnd(date, slot).getTime() <= Date.now()
+}
+
+/* A group is finished once its LAST hour has ended */
+export function groupEnd(group) {
+  const last = group.bookings[group.bookings.length - 1]
+  return slotEnd(group.date, last.slot)
+}
+
+export function groupIsOver(group) {
+  return groupEnd(group).getTime() <= Date.now()
+}
+
+/* First hour of a group, for the "starts in" countdown */
+export function groupStart(group) {
+  return slotStart(group.date, group.bookings[0].slot)
+}

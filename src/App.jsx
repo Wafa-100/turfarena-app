@@ -58,8 +58,7 @@ export default function App() {
           <Route path="/plan"          element={<PlanPurchase user={user} />} />
           <Route path="/wallet"        element={<Wallet user={user} />} />
           <Route path="/contact"       element={<Contact user={user} />} />
-          <Route path="/profile"
-            element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
+          <Route path="/profile"       element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
           <Route path="*"              element={<Navigate to="/" replace />} />
           <Route path="/select-grounds" element={<SelectTurfs user={user} />} />
         </Routes>

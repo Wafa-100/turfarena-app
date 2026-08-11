@@ -8,6 +8,7 @@ import ThemeToggle from '../components/ThemeToggle'
 import Icon from '../components/Icon'
 import { checkEmail } from '../utils/emailCheck'
 import Avatar, { AVATARS } from '../components/Avatar'
+import Countdown from '../components/Countdown'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
@@ -123,7 +124,7 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
     ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
     : null
   const expiry = plan?.plan
-    ? new Date(plan.plan.expiryDate).toLocaleDateString('en-IN', {
+    ? new Date(plan?.plan?.expiryDate).toLocaleDateString('en-IN', {
         day: 'numeric', month: 'short', year: 'numeric'
       })
     : null
@@ -300,7 +301,7 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
           <div className="pf-plan-top">
             <div>
               <p className="pf-plan-name">
-                {plan.plan.planType === 'yearly' ? 'Yearly plan' : 'Monthly plan'}
+                {plan?.plan?.planType === 'yearly' ? 'Yearly plan' : 'Monthly plan'}
               </p>
               <p className="pf-plan-exp">Valid until {expiry}</p>
             </div>
@@ -308,7 +309,7 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
           </div>
           <div className="pf-plan-meter">
             <div className="pf-plan-fill"
-              style={{ width: `${Math.min(100, (plan.turfsUsed / plan.plan.turfLimit) * 100)}%` }} />
+              style={{ width: `${Math.min(100, (plan?.turfsUsed / plan?.plan?.turfLimit) * 100)}%` }} />
           </div>
           {plan?.needsSelection && (
         <button className="pf-select-cta" onClick={() => navigate('/select-grounds')}>
@@ -316,14 +317,14 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
           <div>
             <p className="pf-select-title">Choose which grounds stay live</p>
             <p className="pf-select-sub">
-              You have {plan.turfsUsed} listed but your plan covers {plan.plan.turfLimit}
+              You have {plan?.turfsUsed} listed but your plan covers {plan?.plan?.turfLimit}
             </p>
           </div>
           <Icon name="chevron" size={16} />
         </button>
       )}
           <p className="pf-plan-usage">
-            {plan.turfsUsed} of {plan.plan.turfLimit} grounds listed
+            {plan?.turfsUsed} of {plan?.plan?.turfLimit} grounds listed
           </p>
           <button className="pf-plan-btn" onClick={() => navigate('/add-turf')}>
             Add another ground
@@ -353,19 +354,29 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
                 <div className="pf-turf-mid">
                   <p className="pf-turf-name">{t.name}</p>
                   <p className="pf-turf-meta">
-                    {t.pendingActivation ? (
-                      <span className="pf-badge pf-badge-wait">
-                        <Icon name="clock" size={10} /> Live in 24h
-                      </span>
-                    ) : t.notSelected ? (
-                      <span className="pf-badge pf-badge-off">Hidden</span>
-                    ) : (
-                      <span className={'pf-dot' + (t.isOpen === false ? ' pf-dot-closed' : '')} />
-                    )}
-                    {!t.pendingActivation && !t.notSelected &&
-                      (t.isOpen === false ? 'Closed · ' : 'Open · ')}
                     {t.city} · ₹{t.price}/hr
                   </p>
+
+                  {t.pendingActivation && plan?.plan?.startDate ? (
+                    <div className="pf-turf-strip">
+                      <Countdown
+                        to={new Date(new Date(plan?.plan?.startDate).getTime() + 24 * 3600e3)}
+                        label="Live in"
+                        icon={<Icon name="clock" size={11} />}
+                        compact
+                      />
+                    </div>
+                  ) : t.notSelected ? (
+                  
+                    <div className="pf-turf-strip pf-turf-strip-off">
+                      <Icon name="lock" size={11} /> Hidden — not in your plan
+                    </div>
+                  ) : (
+                    <div className="pf-turf-strip pf-turf-strip-live">
+                      <span className={'pf-dot' + (t.isOpen === false ? ' pf-dot-closed' : '')} />
+                      {t.isOpen === false ? 'Closed for bookings' : 'Live and bookable'}
+                    </div>
+                  )}
                 </div>
                 <div className="pf-turf-actions">
                   <button className="pf-turf-manage" onClick={() => navigate(`/manage/${t._id}`)}>

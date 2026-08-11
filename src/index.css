@@ -3660,3 +3660,117 @@ h2, h3, .sheet-head h2, .pay-head h2,
 .pf-select-title { font-size: 13.5px; font-weight: 800; }
 .pf-select-sub { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
 .pf-select-cta > div { flex: 1; min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE COUNTDOWNS
+   ═══════════════════════════════════════════════════════════════ */
+
+.cd {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; color: var(--text-2);
+}
+.cd .icn { color: var(--text-3); flex-shrink: 0; }
+.cd-label { font-weight: 600; }
+.cd-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800; color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.cd-amber { color: var(--warn); }
+.cd-amber .cd-time, .cd-amber .icn { color: var(--warn); }
+
+.cd-red { color: var(--danger); }
+.cd-red .cd-time, .cd-red .icn { color: var(--danger); }
+.cd-red .cd-time { animation: cdPulse 1.6s ease-in-out infinite; }
+@keyframes cdPulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
+
+.cd-compact { font-size: 11px; gap: 4px; }
+
+.cd-big {
+  display: block; margin: 3px 0 5px;
+}
+.cd-big .cd-time {
+  font-family: var(--font-display);
+  font-size: 26px; letter-spacing: -0.01em; line-height: 1.1;
+}
+
+/* ── Card strip that holds the timer ─────────────────────────── */
+.mb-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+  padding: 9px 12px; margin-top: 11px;
+}
+.mb-strip-locked {
+  background: var(--danger-soft);
+}
+.mb-strip-locked .cd,
+.mb-strip-locked .cd-time,
+.mb-strip-locked .icn { color: var(--danger); }
+.mb-strip-note {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--danger);
+  margin-left: auto;
+}
+
+/* ── Countdown inside the detail sheet ───────────────────────── */
+.mb-detail-timer {
+  display: flex; align-items: flex-start; gap: 13px;
+  background: var(--brand-soft);
+  border: 1px solid color-mix(in srgb, var(--brand) 24%, transparent);
+  border-radius: var(--r-md); padding: 15px;
+  margin-top: 16px; color: var(--brand-dim);
+}
+.mb-detail-timer-label {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.mb-detail-timer .cd-time { color: var(--brand-dim); }
+
+/* ── Plan window strip ───────────────────────────────────────── */
+.pl-window { flex-wrap: wrap; }
+.pl-window .cd-time { color: var(--warn); }
+.pl-note .cd-time { color: var(--info); }
+
+/* ── Profile ground rows ─────────────────────────────────────── */
+.pf-turf { align-items: flex-start; }
+.pf-turf-strip {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 7px; padding: 5px 10px;
+  border-radius: var(--r-full);
+  background: var(--warn-soft);
+  font-size: 11px; font-weight: 700; color: var(--warn);
+}
+.pf-turf-strip .cd-time { color: var(--warn); font-size: 11.5px; }
+.pf-turf-strip-live {
+  background: var(--brand-soft); color: var(--brand-dim);
+}
+.pf-turf-strip-off {
+  background: var(--surface-3); color: var(--text-3);
+}
+.pf-turf-actions { align-self: center; }
+
+.mb-refund-pill {
+  display: inline-block; margin-left: 8px; vertical-align: middle;
+  background: var(--warn-soft); color: var(--warn);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+  padding: 3px 9px; border-radius: var(--r-full);
+}
+
+.mb-expired-pill {
+  display: inline-block; margin-left: 8px; vertical-align: middle;
+  background: var(--surface-3); color: var(--text-2);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.05em;
+  padding: 3px 9px; border-radius: var(--r-full);
+}
+
+.pl-expired {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--surface-3); color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px 15px; margin-top: 16px;
+}
+.pl-expired-title { font-size: 13.5px; font-weight: 800; color: var(--text); }
+.pl-expired-sub { font-size: 12px; margin-top: 3px; line-height: 1.5; }

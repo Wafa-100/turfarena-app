@@ -5,11 +5,13 @@ import {
   fetchMyPlans, cancelPlan
 } from '../utils/api'
 import {
-  prettyDate, todayIso, formatDateTime,
-  slotIsCancellable, timeUntil, SLOT_CANCEL_HOURS
+  prettyDate, formatDateTime,
+  slotIsCancellable, groupIsOver, groupStart,
+  SLOT_CANCEL_HOURS
 } from '../utils/slots'
 import BookingTicket from '../components/BookingTicket'
 import BankFields, { validateBank } from '../components/BankFields'
+import Countdown from '../components/Countdown'
 import Icon from '../components/Icon'
 
 const REFUND_METHODS = [
@@ -21,8 +23,18 @@ const REFUND_METHODS = [
 
 const hourOf = s => parseInt(s, 10)
 
+/*
+  Group hours booked in one transaction into a single row.
+    1. bookingGroup — everything booked after session 12
+    2. payment id   — older paid bookings
+    3. turf+date+minute — older pay-at-venue bookings
+
+  Status is part of the key, so a partly-cancelled booking shows
+  once under Upcoming and once under Cancelled.
+*/
 function groupBookings(list) {
   const map = new Map()
+
   for (const b of list) {
     let base
     if (b.bookingGroup) base = b.bookingGroup
@@ -59,6 +71,67 @@ function groupBookings(list) {
           : `${sorted.length} hours`
     }
   })
+}
+
+/* Shared by the Plans tab and the Cancelled tab */
+function PlanCard({ p, onClick }) {
+  const live = p.status === 'active'
+  const exp = new Date(p.expiryDate)
+  const expired = live && exp < new Date()
+
+  return (
+    <div className={'mb-card mb-clickable' + (!live || expired ? ' mb-card-off' : '')}
+      onClick={onClick}>
+      <div className="mb-card-head">
+        <div className={'pl-icon' + (p.planType === 'yearly' ? ' pl-icon-gold' : '')}>
+          <Icon name={p.planType === 'yearly' ? 'star' : 'calendar'}
+            size={20} filled={p.planType === 'yearly'} />
+        </div>
+        <div className="mb-card-mid">
+          <p className="mb-turf">{p.planType === 'yearly' ? 'Yearly' : 'Monthly'} plan</p>
+          <p className="mb-city">{p.turfLimit} grounds</p>
+          <p className="mb-time">
+            <Icon name="clock" size={13} />
+            <span className="mb-range">
+              {p.status === 'cancelled'
+                ? `Cancelled ${new Date(p.cancelledAt || p.createdAt)
+                    .toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                : expired
+                  ? `Expired ${exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                  : `Until ${exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+            </span>
+          </p>
+        </div>
+        <div className="mb-card-right">
+          <span className={'mb-status ' +
+            (p.status === 'cancelled' ? 'mb-status-red'
+              : expired ? 'mb-status-grey' : 'mb-status-green')}>
+            {p.status === 'cancelled' ? 'Cancelled' : expired ? 'Expired' : 'Active'}
+          </span>
+          <span className="mb-chevron">›</span>
+        </div>
+      </div>
+
+      {live && !expired && !p.isMature && (
+        <div className="mb-strip">
+          <Countdown
+            to={new Date(new Date(p.startDate).getTime() + 24 * 3600e3)}
+            label="Grounds go live in"
+            icon={<Icon name="clock" size={12} />}
+          />
+        </div>
+      )}
+
+      <div className="mb-card-foot">
+        <p className="mb-total">
+          ₹{p.price?.toLocaleString('en-IN')}
+          {p.status === 'cancelled' && <span className="mb-refund-pill">Refunded</span>}
+          {expired && <span className="mb-expired-pill">Expired</span>}
+        </p>
+        <p className="mb-tap-hint">Tap for details</p>
+      </div>
+    </div>
+  )
 }
 
 export default function MyBookings({ user }) {
@@ -99,20 +172,45 @@ export default function MyBookings({ user }) {
     }
   }, [detail])
 
-  const today = todayIso()
   const groups = groupBookings(all)
 
-  const upcoming  = groups.filter(g => g.status === 'Confirmed' && g.date >= today)
-  const past      = groups.filter(g => g.status === 'Confirmed' && g.date <  today)
-  const cancelled = groups.filter(g => g.status === 'Cancelled')
+  const upcoming = groups.filter(g => g.status === 'Confirmed' && !groupIsOver(g))
+  const past     = groups.filter(g => g.status === 'Confirmed' &&  groupIsOver(g))
+  const cancelledBookings = groups.filter(g => g.status === 'Cancelled')
+
+  // Active plans first, then expired ones
+  const activePlans = plans
+    .filter(p => p.status !== 'cancelled')
+    .sort((a, b) => {
+      const aDone = new Date(a.expiryDate) < new Date()
+      const bDone = new Date(b.expiryDate) < new Date()
+      if (aDone !== bDone) return aDone ? 1 : -1
+      return new Date(b.createdAt) - new Date(a.createdAt)
+    })
+  const cancelledPlans = plans.filter(p => p.status === 'cancelled')
+
+  // Cancelled bookings and plans, newest first
+  const cancelledItems = [
+    ...cancelledBookings.map(g => ({
+      kind: 'booking', at: new Date(g.createdAt).getTime(), data: g
+    })),
+    ...cancelledPlans.map(p => ({
+      kind: 'plan', at: new Date(p.cancelledAt || p.createdAt).getTime(), data: p
+    }))
+  ].sort((a, b) => b.at - a.at)
 
   const TABS = [
     { id: 'upcoming',  label: 'Upcoming',  count: upcoming.length },
     { id: 'past',      label: 'Past',      count: past.length },
-    { id: 'cancelled', label: 'Cancelled', count: cancelled.length },
-    { id: 'plans',     label: 'Plans',     count: plans.length }
+    { id: 'cancelled', label: 'Cancelled', count: cancelledItems.length },
+    { id: 'plans',     label: 'Plans',     count: activePlans.length }
   ]
+  const activeList = tab === 'upcoming' ? upcoming : tab === 'past' ? past : []
   const selectedMethod = REFUND_METHODS.find(m => m.id === method)
+
+  const statusOf = g =>
+    g.status === 'Cancelled' ? 'Cancelled'
+      : groupIsOver(g) ? 'Completed' : 'Confirmed'
 
   /* ── slot cancellation ── */
   function startCancel(group) {
@@ -197,6 +295,7 @@ export default function MyBookings({ user }) {
       setCancellingPlan(null); setDetailsInput('')
       setBankDetails({}); setBankErrs({}); setMethod('original')
       setReceipt(result.refund)
+      setTab('cancelled')
       load()
     } catch (e) {
       setError(e.message)
@@ -205,15 +304,6 @@ export default function MyBookings({ user }) {
       setBusy(false)
     }
   }
-
-  const statusOf = g =>
-    g.status === 'Cancelled' ? 'Cancelled'
-      : g.date >= today ? 'Confirmed' : 'Completed'
-
-  const activeList =
-    tab === 'upcoming' ? upcoming :
-    tab === 'past' ? past :
-    tab === 'cancelled' ? cancelled : []
 
   return (
     <div className="page mb-page">
@@ -236,92 +326,19 @@ export default function MyBookings({ user }) {
       {loading && <p className="muted">Loading…</p>}
       {error && !cancelling && !cancellingPlan && <p className="error">{error}</p>}
 
-      {/* ══ PLANS ══ */}
-      {tab === 'plans' && !loading && (
-        <>
-          {plans.length === 0 && (
-            <div className="mb-empty">
-              <div className="mb-empty-icon"><Icon name="star" size={34} /></div>
-              <p className="mb-empty-title">No plans yet</p>
-              <p className="mb-empty-sub">
-                Buy an owner plan to list your ground on TurfArena.
-              </p>
-              <button className="btn-primary" onClick={() => navigate('/plan')}>
-                View plans
-              </button>
-            </div>
-          )}
-
-          <div className="mb-list">
-            {plans.map(p => {
-              const live = p.status === 'active'
-              const exp = new Date(p.expiryDate)
-              const expired = live && exp < new Date()
-              return (
-                <div key={p._id} className={'mb-card mb-clickable' + (!live ? ' mb-card-off' : '')}
-                  onClick={() => setPlanDetail(p)}>
-                  <div className="mb-card-head">
-                    <div className={'pl-icon' + (p.planType === 'yearly' ? ' pl-icon-gold' : '')}>
-                      <Icon name={p.planType === 'yearly' ? 'star' : 'calendar'}
-                        size={20} filled={p.planType === 'yearly'} />
-                    </div>
-                    <div className="mb-card-mid">
-                      <p className="mb-turf">
-                        {p.planType === 'yearly' ? 'Yearly' : 'Monthly'} plan
-                      </p>
-                      <p className="mb-city">{p.turfLimit} grounds</p>
-                      <p className="mb-time">
-                        <Icon name="clock" size={13} />
-                        <span className="mb-range">
-                          {live && !expired
-                            ? `Until ${exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                            : p.status === 'cancelled' ? 'Cancelled' : 'Expired'}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="mb-card-right">
-                      <span className={'mb-status ' +
-                        (p.status === 'cancelled' ? 'mb-status-red'
-                          : expired ? 'mb-status-grey' : 'mb-status-green')}>
-                        {p.status === 'cancelled' ? 'Cancelled' : expired ? 'Expired' : 'Active'}
-                      </span>
-                      <span className="mb-chevron">›</span>
-                    </div>
-                  </div>
-
-                  {live && !expired && !p.isMature && (
-                    <div className="pl-pending">
-                      <Icon name="clock" size={13} />
-                      Grounds go live in {p.hoursToActivation} hour
-                      {p.hoursToActivation > 1 ? 's' : ''}
-                    </div>
-                  )}
-
-                  <div className="mb-card-foot">
-                    <p className="mb-total">₹{p.price?.toLocaleString('en-IN')}</p>
-                    <p className="mb-tap-hint">Tap for details</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ══ BOOKINGS ══ */}
-      {tab !== 'plans' && !loading && activeList.length === 0 && (
+      {/* ══ UPCOMING / PAST ══ */}
+      {(tab === 'upcoming' || tab === 'past') && !loading && activeList.length === 0 && (
         <div className="mb-empty">
           <div className="mb-empty-icon">
-            <Icon name={tab === 'upcoming' ? 'calendar' : tab === 'past' ? 'check' : 'undo'} size={34} />
+            <Icon name={tab === 'upcoming' ? 'calendar' : 'check'} size={34} />
           </div>
           <p className="mb-empty-title">
-            {tab === 'upcoming' ? 'No upcoming bookings'
-              : tab === 'past' ? 'Nothing completed yet' : 'No cancellations'}
+            {tab === 'upcoming' ? 'No upcoming bookings' : 'Nothing completed yet'}
           </p>
           <p className="mb-empty-sub">
-            {tab === 'upcoming' ? 'Find a ground and book your next game.'
-              : tab === 'past' ? 'Your finished games will appear here.'
-              : 'Cancelled bookings and refunds show up here.'}
+            {tab === 'upcoming'
+              ? 'Find a ground and book your next game.'
+              : 'Your finished games will appear here.'}
           </p>
           {tab === 'upcoming' && (
             <button className="btn-primary" onClick={() => navigate('/')}>Browse grounds</button>
@@ -329,16 +346,17 @@ export default function MyBookings({ user }) {
         </div>
       )}
 
-      {tab !== 'plans' && (
+      {(tab === 'upcoming' || tab === 'past') && (
         <div className="mb-list">
           {activeList.map(g => {
             const st = statusOf(g)
-            const locked = st === 'Confirmed' &&
-              !g.bookings.some(b => slotIsCancellable(b.date, b.slot))
+            const canCancel = st === 'Confirmed' &&
+              g.bookings.some(b => slotIsCancellable(b.date, b.slot))
+
             return (
-              <div key={g.key}
-                className={'mb-card mb-clickable' + (st === 'Cancelled' ? ' mb-card-off' : '')}
+              <div key={g.key} className="mb-card mb-clickable"
                 onClick={() => setDetail(g)}>
+
                 <div className="mb-card-head">
                   <div className="mb-date-box">
                     <span className="mb-date-day">{g.date.split('-')[2]}</span>
@@ -357,27 +375,32 @@ export default function MyBookings({ user }) {
                   </div>
                   <div className="mb-card-right">
                     <span className={'mb-status ' +
-                      (st === 'Cancelled' ? 'mb-status-red'
-                        : st === 'Confirmed' ? 'mb-status-green' : 'mb-status-grey')}>
+                      (st === 'Confirmed' ? 'mb-status-green' : 'mb-status-grey')}>
                       {st}
                     </span>
                     <span className="mb-chevron">›</span>
                   </div>
                 </div>
 
-                {locked && (
-                  <div className="mb-locked">
-                    <Icon name="lock" size={12} />
-                    Starts in {timeUntil(g.date, g.bookings[0].slot)} — cancellation closed
+                {st === 'Confirmed' && (
+                  <div className={'mb-strip' + (!canCancel ? ' mb-strip-locked' : '')}>
+                    <Countdown
+                      to={groupStart(g)}
+                      label="Starts in"
+                      icon={<Icon name="clock" size={12} />}
+                    />
+                    {!canCancel && (
+                      <span className="mb-strip-note">
+                        <Icon name="lock" size={11} /> Cancellation closed
+                      </span>
+                    )}
                   </div>
                 )}
 
                 <div className="mb-card-foot">
                   <p className="mb-total">
                     ₹{g.total.toLocaleString('en-IN')}
-                    {g.payAtVenue && st !== 'Cancelled' && (
-                      <span className="mb-venue-pill">Due at ground</span>
-                    )}
+                    {g.payAtVenue && <span className="mb-venue-pill">Due at ground</span>}
                   </p>
                   <p className="mb-tap-hint">Tap to view pass</p>
                 </div>
@@ -385,6 +408,90 @@ export default function MyBookings({ user }) {
             )
           })}
         </div>
+      )}
+
+      {/* ══ CANCELLED — bookings and plans together ══ */}
+      {tab === 'cancelled' && !loading && (
+        <>
+          {cancelledItems.length === 0 && (
+            <div className="mb-empty">
+              <div className="mb-empty-icon"><Icon name="undo" size={34} /></div>
+              <p className="mb-empty-title">No cancellations</p>
+              <p className="mb-empty-sub">
+                Cancelled bookings, plans and their refunds show up here.
+              </p>
+            </div>
+          )}
+
+          <div className="mb-list">
+            {cancelledItems.map(item =>
+              item.kind === 'plan' ? (
+                <PlanCard key={item.data._id} p={item.data}
+                  onClick={() => setPlanDetail(item.data)} />
+              ) : (
+                <div key={item.data.key} className="mb-card mb-clickable mb-card-off"
+                  onClick={() => setDetail(item.data)}>
+                  <div className="mb-card-head">
+                    <div className="mb-date-box">
+                      <span className="mb-date-day">{item.data.date.split('-')[2]}</span>
+                      <span className="mb-date-mon">
+                        {new Date(item.data.date)
+                          .toLocaleDateString('en-IN', { month: 'short' }).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mb-card-mid">
+                      <p className="mb-turf">{item.data.first.turf?.name || 'Turf'}</p>
+                      <p className="mb-city">{item.data.first.turf?.city}</p>
+                      <p className="mb-time">
+                        <Icon name="clock" size={13} />
+                        <span className="mb-range">{item.data.range}</span>
+                        {item.data.count > 1 && (
+                          <span className="mb-hours-pill">{item.data.count} hrs</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-card-right">
+                      <span className="mb-status mb-status-red">Cancelled</span>
+                      <span className="mb-chevron">›</span>
+                    </div>
+                  </div>
+                  <div className="mb-card-foot">
+                    <p className="mb-total">
+                      ₹{item.data.total.toLocaleString('en-IN')}
+                      {!item.data.payAtVenue && (
+                        <span className="mb-refund-pill">Refunded</span>
+                      )}
+                    </p>
+                    <p className="mb-tap-hint">Tap to view pass</p>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ══ PLANS ══ */}
+      {tab === 'plans' && !loading && (
+        <>
+          {activePlans.length === 0 && (
+            <div className="mb-empty">
+              <div className="mb-empty-icon"><Icon name="star" size={34} /></div>
+              <p className="mb-empty-title">No active plans</p>
+              <p className="mb-empty-sub">
+                Buy an owner plan to list your ground on TurfArena.
+              </p>
+              <button className="btn-primary" onClick={() => navigate('/plan')}>
+                View plans
+              </button>
+            </div>
+          )}
+          <div className="mb-list">
+            {activePlans.map(p => (
+              <PlanCard key={p._id} p={p} onClick={() => setPlanDetail(p)} />
+            ))}
+          </div>
+        </>
       )}
 
       {/* ══ BOOKING DETAIL ══ */}
@@ -404,6 +511,16 @@ export default function MyBookings({ user }) {
                 status={statusOf(detail)}
                 refund={detailRefund}
               />
+
+              {statusOf(detail) === 'Confirmed' && (
+                <div className="mb-detail-timer">
+                  <Icon name="clock" size={15} />
+                  <div>
+                    <p className="mb-detail-timer-label">Your game starts in</p>
+                    <Countdown to={groupStart(detail)} className="cd-big" />
+                  </div>
+                </div>
+              )}
 
               {statusOf(detail) === 'Confirmed' && (() => {
                 const any = detail.bookings.some(b => slotIsCancellable(b.date, b.slot))
@@ -478,6 +595,12 @@ export default function MyBookings({ user }) {
                       <span>Cancelled</span><span>{formatDateTime(planDetail.cancelledAt)}</span>
                     </div>
                   )}
+                  {planDetail.refundId && (
+                    <div className="ticket-detail-row">
+                      <span>Refund ID</span>
+                      <span className="ticket-mono">{planDetail.refundId}</span>
+                    </div>
+                  )}
                   <div className="ticket-detail-row">
                     <span>Status</span>
                     <span className={'ticket-status-badge'
@@ -488,14 +611,29 @@ export default function MyBookings({ user }) {
                 </div>
               </div>
 
+              {planDetail.status === 'active' &&
+               new Date(planDetail.expiryDate) < new Date() && (
+                <div className="pl-expired">
+                  <Icon name="clock" size={16} />
+                  <div>
+                    <p className="pl-expired-title">This plan has expired</p>
+                    <p className="pl-expired-sub">
+                      Your grounds are hidden from players. Buy a new plan and they
+                      come back 24 hours later — nothing was deleted.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {planDetail.status === 'active' && !planDetail.isMature && (
                 <div className="pl-note">
                   <Icon name="clock" size={16} />
                   <div>
-                    <p className="pl-note-title">
-                      Grounds go live in {planDetail.hoursToActivation} hour
-                      {planDetail.hoursToActivation > 1 ? 's' : ''}
-                    </p>
+                    <p className="pl-note-title">Grounds go live in</p>
+                    <Countdown
+                      to={new Date(new Date(planDetail.startDate).getTime() + 24 * 3600e3)}
+                      className="cd-big"
+                    />
                     <p className="pl-note-sub">
                       They stay hidden from players until then, which is also your
                       cancellation window.
@@ -504,15 +642,17 @@ export default function MyBookings({ user }) {
                 </div>
               )}
 
-              {planDetail.status === 'active' && (
+              {planDetail.status === 'active' &&
+               new Date(planDetail.expiryDate) >= new Date() && (
                 planDetail.canCancel ? (
                   <>
                     <div className="pl-window">
                       <Icon name="alert" size={15} />
-                      <span>
-                        {planDetail.hoursToCancel} hour{planDetail.hoursToCancel > 1 ? 's' : ''} left
-                        to cancel with a full refund
-                      </span>
+                      <span>Full refund available for</span>
+                      <Countdown
+                        to={new Date(new Date(planDetail.startDate).getTime() + 24 * 3600e3)}
+                        compact
+                      />
                     </div>
                     <button className="mb-cancel-full"
                       onClick={() => { setCancellingPlan(planDetail); setPlanDetail(null) }}>
@@ -594,7 +734,8 @@ export default function MyBookings({ user }) {
                     <p className="rf-amount-label">Nothing to refund</p>
                     <p className="rf-amount">₹0</p>
                     <p className="rf-amount-sub">
-                      You had not paid — {cancelling.first.turf?.name} · {prettyDate(cancelling.date)}
+                      You had not paid — {cancelling.first.turf?.name}
+                      {' · '}{prettyDate(cancelling.date)}
                     </p>
                   </div>
                   <p className="rf-note">
@@ -673,7 +814,8 @@ export default function MyBookings({ user }) {
           <div className="sheet sheet-short" onClick={e => e.stopPropagation()}>
             <div className="sheet-head">
               <h2>Cancel plan</h2>
-              <button className="sheet-close" disabled={busy} onClick={() => setCancellingPlan(null)}>
+              <button className="sheet-close" disabled={busy}
+                onClick={() => setCancellingPlan(null)}>
                 <Icon name="close" size={14} />
               </button>
             </div>
@@ -735,7 +877,8 @@ export default function MyBookings({ user }) {
                 {busy ? 'Cancelling…'
                   : `Cancel plan & refund ₹${cancellingPlan.price?.toLocaleString('en-IN')}`}
               </button>
-              <button className="btn-ghost" disabled={busy} onClick={() => setCancellingPlan(null)}>
+              <button className="btn-ghost" disabled={busy}
+                onClick={() => setCancellingPlan(null)}>
                 Keep my plan
               </button>
             </div>
@@ -783,7 +926,11 @@ export default function MyBookings({ user }) {
                 </div>
               </div>
 
-              <button className="btn-primary" onClick={() => setReceipt(null)}>Done</button>
+              <button className="btn-primary"
+                onClick={() => { setReceipt(null); setTab('cancelled') }}>
+                View in Cancelled
+              </button>
+              <button className="btn-ghost" onClick={() => setReceipt(null)}>Done</button>
             </div>
           </div>
         </div>
