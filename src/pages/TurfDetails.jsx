@@ -1,19 +1,42 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchTurf } from '../utils/api'
+import { fetchTurf, fetchTurfReviews, canReviewTurf } from '../utils/api'
 import { buildMapUrl, buildMapLink } from '../utils/geocode'
-import Icon from '../components/Icon'
 import { priceRange } from '../utils/pricing'
+import { Stars } from '../components/StarRating'
+import ReviewCard from '../components/ReviewCard'
+import Countdown from '../components/Countdown'
+import Icon from '../components/Icon'
 
 export default function TurfDetails({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
+
   const [turf, setTurf] = useState(null)
   const [error, setError] = useState('')
   const [idx, setIdx] = useState(0)
 
+  const [reviews, setReviews] = useState([])
+  const [reviewTotal, setReviewTotal] = useState(0)
+  const [showAll, setShowAll] = useState(false)
+  const [sort, setSort] = useState('recent')
+  const [filterStar, setFilterStar] = useState('all')
+  const [canReview, setCanReview] = useState(null)
+
   useEffect(() => {
     fetchTurf(id).then(setTurf).catch(e => setError(e.message))
+  }, [id])
+
+  function loadReviews() {
+    const q = `?sort=${sort}&rating=${filterStar}` + (showAll ? '' : '&limit=5')
+    fetchTurfReviews(id, q)
+      .then(r => { setReviews(r.reviews); setReviewTotal(r.total) })
+      .catch(() => {})
+  }
+  useEffect(() => { loadReviews() }, [id, sort, filterStar, showAll])
+
+  useEffect(() => {
+    if (user) canReviewTurf(id, user.id).then(setCanReview).catch(() => {})
   }, [id])
 
   if (error) return <div className="page"><p className="error">{error}</p></div>
@@ -22,6 +45,8 @@ export default function TurfDetails({ user }) {
   const photos = (turf.photos?.length ? turf.photos : [turf.photo]).filter(Boolean)
   const hasMap = turf.lat && turf.lng
   const isOwner = user && turf.owner && String(turf.owner) === String(user.id)
+  const notLive = turf.isLive === false
+  const closed = turf.isOpen === false
 
   const facts = [
     { icon: 'clock',  label: 'Open',    value: `${turf.openTime} – ${turf.closeTime}` },
@@ -73,7 +98,38 @@ export default function TurfDetails({ user }) {
 
       <div className="td-body">
 
-{turf.isOpen === false && (
+        {/* ── Not live yet ── */}
+        {notLive && (
+          <div className="td-pending">
+            <Icon name={turf.pendingActivation ? 'clock' : 'lock'} size={18} />
+            <div>
+              <p className="td-pending-title">
+                {turf.pendingActivation ? 'Not live yet'
+                  : turf.notSelected ? 'Hidden by the owner'
+                  : 'Not accepting bookings'}
+              </p>
+              <p className="td-pending-sub">
+                {turf.pendingActivation
+                  ? 'This ground becomes bookable 24 hours after the plan started.'
+                  : turf.notSelected
+                    ? "The owner's current plan does not include this ground."
+                    : 'The owner does not have an active plan.'}
+              </p>
+              {turf.pendingActivation && turf.planStartDate && (
+                <div style={{ marginTop: 8 }}>
+                  <Countdown
+                    to={new Date(new Date(turf.planStartDate).getTime() + 24 * 3600e3)}
+                    label="Live in"
+                    icon={<Icon name="clock" size={12} />}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Closed ── */}
+        {closed && !notLive && (
           <div className="td-closed">
             <Icon name="lock" size={18} />
             <div>
@@ -85,27 +141,32 @@ export default function TurfDetails({ user }) {
           </div>
         )}
 
-        {/* ── Price + rating strip ── */}
+        {/* ── Price strip ── */}
         <div className="td-strip">
           <div>
-            <p className="td-strip-label">Starting from</p>
+            <p className="td-strip-label">
+              {turf.pricingMode === 'bands' ? 'Rates from' : 'Price per hour'}
+            </p>
             <p className="td-strip-price">
               {priceRange(turf)}<span>/hr</span>
             </p>
             {turf.paymentMode === 'venue' && (
-            <span className="td-venue-tag">
-              <Icon name="wallet" size={12} /> Pay at ground
-            </span>
-          )}
+              <span className="td-venue-tag">
+                <Icon name="wallet" size={12} /> Pay at ground
+              </span>
+            )}
           </div>
-          {turf.rating > 0 && (
+
+          {turf.reviewCount > 0 ? (
             <div className="td-strip-rating">
-              <Icon name="star" size={15} filled />
+              <Stars value={turf.rating} size={14} />
               <div>
                 <p className="td-strip-rate-num">{turf.rating}</p>
-                <p className="td-strip-rate-lbl">{turf.reviews || 0} reviews</p>
+                <p className="td-strip-rate-lbl">{turf.reviewCount} reviews</p>
               </div>
             </div>
+          ) : (
+            <span className="td-no-rating">No ratings yet</span>
           )}
         </div>
 
@@ -142,7 +203,8 @@ export default function TurfDetails({ user }) {
           </section>
         )}
 
-{turf.pricingMode === 'bands' && turf.priceBands?.length > 0 && (
+        {/* ── Rate bands ── */}
+        {turf.pricingMode === 'bands' && turf.priceBands?.length > 0 && (
           <section className="td-section">
             <h2 className="td-h2">Rates by time</h2>
             <div className="td-bands">
@@ -158,6 +220,99 @@ export default function TurfDetails({ user }) {
             </div>
           </section>
         )}
+
+        {/* ── Reviews ── */}
+        <section className="td-section">
+          <div className="rv-head-row">
+            <h2 className="td-h2" style={{ margin: 0 }}>
+              Reviews {reviewTotal > 0 && `(${reviewTotal})`}
+            </h2>
+            {canReview?.canReview && (
+              <button className="rv-write-btn"
+                onClick={() => navigate(`/reviews?turf=${id}`)}>
+                <Icon name="edit" size={14} /> Write one
+              </button>
+            )}
+          </div>
+
+          {reviewTotal === 0 ? (
+            <div className="rv-empty">
+              <Icon name="star" size={28} />
+              <p className="rv-empty-title">No reviews yet</p>
+              <p className="rv-empty-sub">
+                {canReview?.canReview
+                  ? 'You have played here — be the first to review it.'
+                  : 'Reviews appear once players have been here.'}
+              </p>
+              {canReview?.canReview && (
+                <button className="btn-ghost" onClick={() => navigate(`/reviews?turf=${id}`)}>
+                  Write the first review
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="rv-summary">
+                <div className="rv-score">
+                  <p className="rv-score-num">{turf.rating}</p>
+                  <Stars value={turf.rating} size={15} />
+                  <p className="rv-score-count">{turf.reviewCount} reviews</p>
+                </div>
+                <div className="rv-bars">
+                  {[['five', 5], ['four', 4], ['three', 3], ['two', 2], ['one', 1]]
+                    .map(([key, n]) => {
+                      const count = turf.ratingBreakdown?.[key] || 0
+                      const pct = turf.reviewCount ? (count / turf.reviewCount) * 100 : 0
+                      return (
+                        <button key={n}
+                          className={'rv-bar-row' + (filterStar === String(n) ? ' rv-bar-on' : '')}
+                          onClick={() =>
+                            setFilterStar(filterStar === String(n) ? 'all' : String(n))}>
+                          <span className="rv-bar-n">{n}</span>
+                          <span className="rv-bar-track">
+                            <span className="rv-bar-fill" style={{ width: `${pct}%` }} />
+                          </span>
+                          <span className="rv-bar-c">{count}</span>
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+
+              <div className="rv-filters">
+                <select value={sort} onChange={e => setSort(e.target.value)} className="rv-sort">
+                  <option value="recent">Most recent</option>
+                  <option value="helpful">Most helpful</option>
+                  <option value="highest">Highest rated</option>
+                  <option value="lowest">Lowest rated</option>
+                </select>
+                {filterStar !== 'all' && (
+                  <button className="rv-clear" onClick={() => setFilterStar('all')}>
+                    {filterStar} stars <Icon name="close" size={12} />
+                  </button>
+                )}
+              </div>
+
+              <div className="rv-list">
+                {reviews.map(r => (
+                  <ReviewCard key={r._id} review={r} user={user}
+                    isOwner={isOwner} onChange={loadReviews} />
+                ))}
+              </div>
+
+              {!showAll && reviewTotal > 5 && (
+                <button className="rv-more" onClick={() => setShowAll(true)}>
+                  Show all {reviewTotal} reviews
+                </button>
+              )}
+              {showAll && reviews.length > 5 && (
+                <button className="rv-more" onClick={() => setShowAll(false)}>
+                  Show fewer
+                </button>
+              )}
+            </>
+          )}
+        </section>
 
         {/* ── Location ── */}
         <section className="td-section">
@@ -182,32 +337,42 @@ export default function TurfDetails({ user }) {
           )}
 
           <a className="td-link" href={`tel:${turf.phone}`}>
-            <Icon name="card" size={17} />
+            <Icon name="phone" size={17} />
             <span>{turf.phone}</span>
             <Icon name="chevron" size={16} className="td-link-arrow" />
           </a>
         </section>
 
         {isOwner && (
-          <button className="td-owner-btn" onClick={() => navigate(`/edit-turf/${turf._id}`)}>
-            Edit my ground
-          </button>
+          <>
+            <button className="td-owner-btn" onClick={() => navigate(`/manage/${turf._id}`)}>
+              Manage this ground
+            </button>
+            <button className="btn-ghost" onClick={() => navigate(`/edit-turf/${turf._id}`)}>
+              Edit listing details
+            </button>
+          </>
         )}
 
         <div style={{ height: 92 }} />
       </div>
 
-      {/* ── Sticky book bar ── */}
+      {/* ── Sticky bar ── */}
       <div className="td-bar">
         <div className="td-bar-inner">
           <div>
-            <p className="td-bar-label">From</p>
+            <p className="td-bar-label">
+              {turf.paymentMode === 'venue' ? 'Pay at ground' : 'From'}
+            </p>
             <p className="td-bar-price">₹{turf.price}<span>/hr</span></p>
           </div>
           <button className="td-bar-btn"
-            disabled={turf.isOpen === false}
+            disabled={notLive || closed}
             onClick={() => navigate(`/book/${turf._id}`)}>
-            {turf.isOpen === false ? 'Currently closed' : 'Check availability'}
+            {notLive
+              ? (turf.pendingActivation ? 'Not live yet' : 'Closed')
+              : closed ? 'Currently closed'
+              : 'Check availability'}
           </button>
         </div>
       </div>

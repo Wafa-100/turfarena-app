@@ -44,11 +44,14 @@ function TurfCard({ turf }) {
           {turf.isOpen === false ? 'Closed' : 'Open'}
         </span>
 
-        {turf.rating > 0 && (
+        {turf.reviewCount > 0 ? (
           <span className="tcard-rating">
             <Icon name="star" size={11} filled />
             {turf.rating}
+            <span className="tcard-rating-n">({turf.reviewCount})</span>
           </span>
+        ) : (
+          <span className="tcard-rating tcard-rating-new">New</span>
         )}
 
         <div className="tcard-overlay">

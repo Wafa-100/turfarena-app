@@ -394,6 +394,10 @@ export default function Profile({ user, onUserUpdate, onLogout }) {
 
       <p className="pf-section-label">More</p>
       <div className="pf-rows">
+        <button className="pf-link" onClick={() => navigate('/reviews')}>
+          <span>My reviews</span>
+          <Icon name="chevron" size={17} className="pf-link-arrow" />
+        </button>
         <button className="pf-link" onClick={() => navigate('/bookings')}>
           <span>My bookings</span>
           <Icon name="chevron" size={17} className="pf-link-arrow" />

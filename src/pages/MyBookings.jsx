@@ -74,10 +74,29 @@ function groupBookings(list) {
 }
 
 /* Shared by the Plans tab and the Cancelled tab */
+/* Shared by the Plans tab and the Cancelled tab */
 function PlanCard({ p, onClick }) {
+  if (!p) return null
+
   const live = p.status === 'active'
-  const exp = new Date(p.expiryDate)
-  const expired = live && exp < new Date()
+  const exp = p.expiryDate ? new Date(p.expiryDate) : null
+  const expired = live && exp && exp < new Date()
+
+  const fmt = (d) => {
+    if (!d) return '—'
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return '—'
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  }
+
+  const label =
+    p.status === 'cancelled' ? `Cancelled ${fmt(p.cancelledAt || p.createdAt)}`
+      : expired ? `Expired ${fmt(p.expiryDate)}`
+      : exp ? `Until ${fmt(p.expiryDate)}`
+      : 'Active'
+
+  const startMs = p.startDate ? new Date(p.startDate).getTime() : null
+  const showCountdown = live && !expired && !p.isMature && startMs && !isNaN(startMs)
 
   return (
     <div className={'mb-card mb-clickable' + (!live || expired ? ' mb-card-off' : '')}
@@ -89,17 +108,10 @@ function PlanCard({ p, onClick }) {
         </div>
         <div className="mb-card-mid">
           <p className="mb-turf">{p.planType === 'yearly' ? 'Yearly' : 'Monthly'} plan</p>
-          <p className="mb-city">{p.turfLimit} grounds</p>
+          <p className="mb-city">{p.turfLimit || 0} grounds</p>
           <p className="mb-time">
             <Icon name="clock" size={13} />
-            <span className="mb-range">
-              {p.status === 'cancelled'
-                ? `Cancelled ${new Date(p.cancelledAt || p.createdAt)
-                    .toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                : expired
-                  ? `Expired ${exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                  : `Until ${exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
-            </span>
+            <span className="mb-range">{label}</span>
           </p>
         </div>
         <div className="mb-card-right">
@@ -112,10 +124,10 @@ function PlanCard({ p, onClick }) {
         </div>
       </div>
 
-      {live && !expired && !p.isMature && (
+      {showCountdown && (
         <div className="mb-strip">
           <Countdown
-            to={new Date(new Date(p.startDate).getTime() + 24 * 3600e3)}
+            to={new Date(startMs + 24 * 3600e3)}
             label="Grounds go live in"
             icon={<Icon name="clock" size={12} />}
           />
@@ -124,7 +136,7 @@ function PlanCard({ p, onClick }) {
 
       <div className="mb-card-foot">
         <p className="mb-total">
-          ₹{p.price?.toLocaleString('en-IN')}
+          ₹{(p.price || 0).toLocaleString('en-IN')}
           {p.status === 'cancelled' && <span className="mb-refund-pill">Refunded</span>}
           {expired && <span className="mb-expired-pill">Expired</span>}
         </p>
@@ -625,7 +637,7 @@ export default function MyBookings({ user }) {
                 </div>
               )}
 
-              {planDetail.status === 'active' && !planDetail.isMature && (
+              {planDetail.status === 'active' && !planDetail.isMature && planDetail.startDate && (
                 <div className="pl-note">
                   <Icon name="clock" size={16} />
                   <div>
@@ -642,8 +654,8 @@ export default function MyBookings({ user }) {
                 </div>
               )}
 
-              {planDetail.status === 'active' &&
-               new Date(planDetail.expiryDate) >= new Date() && (
+              {planDetail.status === 'active' && 
+               new Date(planDetail.expiryDate) >= new Date() && planDetail.startDate && (
                 planDetail.canCancel ? (
                   <>
                     <div className="pl-window">

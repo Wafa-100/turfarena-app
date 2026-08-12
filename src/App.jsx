@@ -19,6 +19,7 @@ import Contact from './pages/Contact'
 import Profile from './pages/Profile'
 import AdminApp from './admin/AdminApp'
 import SelectTurfs from './pages/SelectTurfs'
+import Reviews from './pages/Reviews'
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/profile"       element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
           <Route path="*"              element={<Navigate to="/" replace />} />
           <Route path="/select-grounds" element={<SelectTurfs user={user} />} />
+          <Route path="/reviews" element={<Reviews user={user} />} />
         </Routes>
       </main>
       <BottomNav />

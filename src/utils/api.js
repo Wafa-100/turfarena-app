@@ -121,3 +121,19 @@ export const fetchMyPlans = (userId) => apiFetch('/api/plans/my/' + userId)
 export const cancelPlan = (body) => apiFetch('/api/plans/cancel', { method: 'POST', body })
 export const selectPlanTurfs = (body) =>
   apiFetch('/api/plans/select-turfs', { method: 'POST', body })
+
+// ── Reviews ──────────────────────────────────────────────────────
+export const fetchTurfReviews = (turfId, params = '') =>
+  apiFetch(`/api/reviews/turf/${turfId}${params}`)
+export const canReviewTurf = (turfId, userId) =>
+  apiFetch(`/api/reviews/can-review/${turfId}/${userId}`)
+export const fetchMyReviews = (userId) => apiFetch('/api/reviews/my/' + userId)
+export const createReview = (body) => apiFetch('/api/reviews', { method: 'POST', body })
+export const updateReview = (id, body) =>
+  apiFetch('/api/reviews/' + id, { method: 'PUT', body })
+export const deleteReview = (id, userId) =>
+  apiFetch('/api/reviews/' + id, { method: 'DELETE', body: { userId } })
+export const markHelpful = (id, userId) =>
+  apiFetch(`/api/reviews/${id}/helpful`, { method: 'POST', body: { userId } })
+export const replyToReview = (id, body) =>
+  apiFetch(`/api/reviews/${id}/reply`, { method: 'POST', body })
