@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { registerUser, loginUser, saveUser } from '../utils/api'
 import { checkEmail } from '../utils/emailCheck'
+import Logo from '../components/Logo'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
 
@@ -101,9 +102,11 @@ export default function Login({ onLogin }) {
   return (
     <div className="au-page">
       <div className="au-brand">
-        <div className="au-logo">⚽</div>
-        <h1 className="au-app-name">TURF ARENA</h1>
-        <p className="au-tagline">Book Sports Grounds Near You</p>
+        <div className="au-logo-wrap">
+          <Logo size={62} animate />
+        </div>
+        <h1 className="au-app-name">TurfArena</h1>
+        <p className="au-tagline">Book sports grounds near you</p>
       </div>
 
       <div className="au-card">

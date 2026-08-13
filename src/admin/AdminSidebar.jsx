@@ -16,7 +16,7 @@ export default function AdminSidebar({ current, onNav, onLogout, user }) {
   return (
     <aside className="admin-sidebar">
       <div className="admin-brand">
-        <span className="admin-brand-icon"><Icon name="ball" size={26} /></span>
+        <span className="admin-brand-icon"><Logo size={28} mono /></span>
         <div>
           <p className="admin-brand-name">TurfArena</p>
           <p className="admin-brand-sub">Admin Panel</p>

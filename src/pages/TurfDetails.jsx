@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf, fetchTurfReviews, canReviewTurf } from '../utils/api'
-import { buildMapUrl, buildMapLink } from '../utils/geocode'
+import { buildMapUrl, buildDirectionsLink } from '../utils/geocode'
 import { priceRange } from '../utils/pricing'
 import { Stars } from '../components/StarRating'
 import ReviewCard from '../components/ReviewCard'
@@ -323,12 +323,21 @@ export default function TurfDetails({ user }) {
                 title={`Map of ${turf.name}`}
                 className="td-map"
                 loading="lazy"
-                src={buildMapUrl(turf.lat, turf.lng)}
+                referrerPolicy="no-referrer-when-downgrade"
+                src={buildMapUrl(turf.lat, turf.lng, turf.placeId)}
               />
-              <a className="td-link" href={buildMapLink(turf.lat, turf.lng, turf.name)}
+              <p className="td-address-line">
+                <Icon name="pin" size={14} />
+                {turf.formattedAddress || `${turf.address}, ${turf.city}`}
+              </p>
+              <a className="td-directions"
+                href={buildDirectionsLink(turf.lat, turf.lng, turf.placeId, turf.name)}
                 target="_blank" rel="noreferrer">
-                <Icon name="pin" size={17} />
-                <span>Open directions</span>
+                <Icon name="arrow" size={18} />
+                <div>
+                  <p className="td-directions-title">Get directions</p>
+                  <p className="td-directions-sub">Opens in Google Maps</p>
+                </div>
                 <Icon name="chevron" size={16} className="td-link-arrow" />
               </a>
             </>

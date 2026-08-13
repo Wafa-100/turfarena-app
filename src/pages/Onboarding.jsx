@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from '../components/Icon'
+import Logo from '../components/Logo'
 
 /* Swap these for your own photos in public/onboarding/ */
 const PHOTOS = [
@@ -73,7 +74,10 @@ export default function Onboarding({ onFinish }) {
 
       {/* ── Top bar ── */}
       <header className="ob3-top">
-        <span className="ob3-brand">TurfArena</span>
+        <span className="ob3-brand">
+          <Logo size={22} mono />
+          TurfArena
+        </span>
         {!last && <button className="ob3-skip" onClick={onFinish}>Skip</button>}
       </header>
 

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { getCurrentUser, logoutUser } from './utils/api'
 import TopBar from './components/TopBar'
 import BottomNav from './components/BottomNav'
+import Splash from './components/Splash'
 import Onboarding from './pages/Onboarding'
 import Login from './pages/Login'
 import Home from './pages/Home'
@@ -15,11 +16,11 @@ import EditTurf from './pages/EditTurf'
 import ManageGround from './pages/ManageGround'
 import PlanPurchase from './pages/PlanPurchase'
 import Wallet from './pages/Wallet'
+import Reviews from './pages/Reviews'
+import SelectTurfs from './pages/SelectTurfs'
 import Contact from './pages/Contact'
 import Profile from './pages/Profile'
 import AdminApp from './admin/AdminApp'
-import SelectTurfs from './pages/SelectTurfs'
-import Reviews from './pages/Reviews'
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(
@@ -27,11 +28,23 @@ export default function App() {
   )
   const [user, setUser] = useState(getCurrentUser())
 
+  // 1 — splash state
+  const [booting, setBooting] = useState(true)
+
+  // 2 — hide it after a moment
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), 900)
+    return () => clearTimeout(t)
+  }, [])
+
   function finishOnboarding() {
     localStorage.setItem('te_onboarded', 'yes')
     setOnboarded(true)
   }
   function handleLogout() { logoutUser(); setUser(null) }
+
+  // 3 — show the splash before anything else
+  if (booting) return <Splash />
 
   if (!onboarded) {
     return <div className="app-shell"><Onboarding onFinish={finishOnboarding} /></div>
@@ -48,21 +61,22 @@ export default function App() {
       <TopBar />
       <main className="screen">
         <Routes>
-          <Route path="/"              element={<Home user={user} />} />
-          <Route path="/turf/:id"      element={<TurfDetails user={user} />} />
-          <Route path="/book/:id"      element={<Booking user={user} />} />
-          <Route path="/confirmation"  element={<BookingConfirmation />} />
-          <Route path="/bookings"      element={<MyBookings user={user} />} />
-          <Route path="/add-turf"      element={<AddTurf user={user} />} />
-          <Route path="/edit-turf/:id" element={<EditTurf user={user} />} />
-          <Route path="/manage/:id"    element={<ManageGround user={user} />} />
-          <Route path="/plan"          element={<PlanPurchase user={user} />} />
-          <Route path="/wallet"        element={<Wallet user={user} />} />
-          <Route path="/contact"       element={<Contact user={user} />} />
-          <Route path="/profile"       element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
-          <Route path="*"              element={<Navigate to="/" replace />} />
-          <Route path="/select-grounds" element={<SelectTurfs user={user} />} />
-          <Route path="/reviews" element={<Reviews user={user} />} />
+          <Route path="/"                element={<Home user={user} />} />
+          <Route path="/turf/:id"        element={<TurfDetails user={user} />} />
+          <Route path="/book/:id"        element={<Booking user={user} />} />
+          <Route path="/confirmation"    element={<BookingConfirmation />} />
+          <Route path="/bookings"        element={<MyBookings user={user} />} />
+          <Route path="/add-turf"        element={<AddTurf user={user} />} />
+          <Route path="/edit-turf/:id"   element={<EditTurf user={user} />} />
+          <Route path="/manage/:id"      element={<ManageGround user={user} />} />
+          <Route path="/plan"            element={<PlanPurchase user={user} />} />
+          <Route path="/select-grounds"  element={<SelectTurfs user={user} />} />
+          <Route path="/wallet"          element={<Wallet user={user} />} />
+          <Route path="/reviews"         element={<Reviews user={user} />} />
+          <Route path="/contact"         element={<Contact user={user} />} />
+          <Route path="/profile"
+            element={<Profile user={user} onUserUpdate={setUser} onLogout={handleLogout} />} />
+          <Route path="*"                element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <BottomNav />

@@ -81,7 +81,8 @@ export const fetchPlanStatus = (userId) => apiFetch(`/api/plans/status/${userId}
 export const purchasePlan = (body) => apiFetch('/api/plans/purchase', { method: 'POST', body })
 // turf owner edit
 export const fetchMyTurfs = (userId) => apiFetch(`/api/turfs/my/${userId}`)
-export const updateTurf = (id, body) => apiFetch(`/api/turfs/${id}`, { method: 'PUT', body })
+export const updateTurf = (id, body) =>
+  apiFetch('/api/turfs/' + id, { method: 'PUT', body })
 // admin plans
 export const adminGetPlans = () => adminFetch('/api/admin/plans')
 export const fetchMyBookingsGrouped = (userId) => apiFetch(`/api/bookings/my/${userId}`)

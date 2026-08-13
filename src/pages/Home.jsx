@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchTurfs } from '../utils/api'
 import Icon from '../components/Icon'
+import { useNavigate } from 'react-router-dom'
 
 const SPORTS = ['All', 'Football', 'Cricket', 'Badminton', 'Tennis', 'Multi-Sport']
 
@@ -78,6 +79,8 @@ function TurfCard({ turf }) {
 }
 
 export default function Home({ user }) {
+  const navigate = useNavigate()
+
   const [turfs, setTurfs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -105,8 +108,16 @@ export default function Home({ user }) {
 
       {/* ── Editorial header ── */}
       <header className="hm-head">
-        <p className="hm-eyebrow">{greet()}</p>
-        <h1 className="hm-name">{firstName}</h1>
+        <div className="hm-head-row">
+          <div>
+            <p className="hm-eyebrow">{greet()}</p>
+            <h1 className="hm-name">{firstName}</h1>
+          </div>
+          <button className="hm-account" onClick={() => navigate('/profile')}
+            aria-label="Your account">
+            <Icon name="user" size={22} />
+          </button>
+        </div>
         <p className="hm-sub">
           {turfs.length} grounds{cities > 0 && <> across {cities} cities</>} — ready when you are
         </p>

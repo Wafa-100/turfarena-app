@@ -1,185 +1,319 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchTurf, updateTurf } from '../utils/api'
-import { geocodeAddress, buildMapUrl } from '../utils/geocode'
+import PhotoUpload from '../components/PhotoUpload'
+import AddressPicker from '../components/AddressPicker'
 import TimeSelect from '../components/TimeSelect'
+import Icon from '../components/Icon'
+
+const SPORTS = [
+  { id: 'Football',    icon: 'ball' },
+  { id: 'Cricket',     icon: 'ball' },
+  { id: 'Badminton',   icon: 'ball' },
+  { id: 'Tennis',      icon: 'ball' },
+  { id: 'Multi-Sport', icon: 'star' }
+]
+
+const AMENITIES = [
+  'Floodlights', 'Parking', 'Washroom', 'Changing room',
+  'Drinking water', 'Seating', 'First aid', 'Equipment rental',
+  'Cafeteria', 'CCTV'
+]
+
+const STEPS = ['Basics', 'Details', 'Location']
 
 export default function EditTurf({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
+
   const [loading, setLoading] = useState(true)
+  const [step, setStep] = useState(0)
+  const [photos, setPhotos] = useState([])
+  const [loc, setLoc] = useState({})
+  const [amenities, setAmenities] = useState([])
+  const [f, setF] = useState({
+    name: '', sport: 'Football', price: '',
+    openTime: '06:00', closeTime: '23:00',
+    surface: '', size: '', description: '', phone: ''
+  })
+
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [geocoding, setGeocoding] = useState(false)
-  const [mapPreview, setMapPreview] = useState(null)
-  const [f, setF] = useState(null)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    fetchTurf(id).then(turf => {
-      // Security: only owner can access this page
-      if (!turf.owner || turf.owner.toString() !== user.id) {
-        navigate(`/turf/${id}`)
-        return
-      }
-      const photos = Array.isArray(turf.photos) ? turf.photos : []
-      setF({
-        name: turf.name || '',
-        sport: turf.sport || 'Football',
-        address: turf.address || '',
-        city: turf.city || '',
-        price: turf.price || '',
-        openTime: turf.openTime || '06:00',
-        closeTime: turf.closeTime || '23:00',
-        surface: turf.surface || '',
-        size: turf.size || '',
-        amenities: Array.isArray(turf.amenities) ? turf.amenities.join(', ') : '',
-        description: turf.description || '',
-        phone: turf.phone || '',
-        lat: turf.lat || '',
-        lng: turf.lng || '',
-        photo1: photos[0] || turf.photo || '',
-        photo2: photos[1] || '',
-        photo3: photos[2] || '',
-        photo4: photos[3] || '',
-        photo5: photos[4] || '',
+    fetchTurf(id)
+      .then(t => {
+        if (!t.owner || String(t.owner) !== String(user.id)) {
+          navigate('/')
+          return
+        }
+        setF({
+          name: t.name || '',
+          sport: t.sport || 'Football',
+          price: String(t.price || ''),
+          openTime: t.openTime || '06:00',
+          closeTime: t.closeTime || '23:00',
+          surface: t.surface || '',
+          size: t.size || '',
+          description: t.description || '',
+          phone: (t.phone || '').replace(/\D/g, '').slice(-10)
+        })
+        setPhotos(t.photos?.length ? t.photos : (t.photo ? [t.photo] : []))
+        setAmenities(t.amenities || [])
+        setLoc({
+          address: t.address,
+          lat: t.lat,
+          lng: t.lng,
+          city: t.city,
+          placeId: t.placeId,
+          formattedAddress: t.formattedAddress,
+          mapPrecision: t.mapPrecision
+        })
       })
-      if (turf.lat && turf.lng) setMapPreview({ lat: turf.lat, lng: turf.lng })
-    }).catch(e => setError(e.message))
-    .finally(() => setLoading(false))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
   }, [id])
 
-  function upd(k, v) { setF(p => ({ ...p, [k]: v })) }
+  const upd = (k, v) => setF(p => ({ ...p, [k]: v }))
+  const toggleAmenity = a =>
+    setAmenities(x => x.includes(a) ? x.filter(y => y !== a) : [...x, a])
 
-  async function handleGeocode() {
-    const query = [f.address, f.city].filter(Boolean).join(', ')
-    setGeocoding(true)
-    const result = await geocodeAddress(query)
-    setGeocoding(false)
-    if (result) {
-      setF(p => ({ ...p, lat: result.lat.toFixed(6), lng: result.lng.toFixed(6) }))
-      setMapPreview({ lat: result.lat, lng: result.lng })
-    } else setError('Location Not Found. Try A More Specific Address.')
+  if (loading) return <div className="page"><p className="muted">Loading…</p></div>
+
+  /* ══ Saved ══ */
+
+  if (saved) {
+    return (
+      <div className="at-done">
+        <div className="at-done-mark"><Icon name="check" size={30} /></div>
+        <h1 className="at-done-title">Changes saved</h1>
+        <p className="at-done-sub">{f.name} has been updated.</p>
+
+        {photos[0] && <img src={photos[0]} alt="" className="at-done-img" />}
+
+        <button className="pp-cta" onClick={() => navigate(`/turf/${id}`)}>
+          View my ground <Icon name="arrow" size={17} />
+        </button>
+        <button className="btn-ghost" onClick={() => navigate(`/manage/${id}`)}>
+          Manage slots and pricing
+        </button>
+      </div>
+    )
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setBusy(true)
+  function validateStep() {
     setError('')
+
+    if (step === 0) {
+      if (!f.name.trim()) { setError('Give your ground a name'); return false }
+      if (!f.price || Number(f.price) <= 0) { setError('Set an hourly price'); return false }
+      if (photos.length === 0) { setError('Keep at least one photo'); return false }
+      return true
+    }
+
+    if (step === 1) {
+      if (!f.phone.trim() || f.phone.length !== 10) {
+        setError('Add a valid 10-digit contact number'); return false
+      }
+      return true
+    }
+
+    if (step === 2) {
+      if (!loc.lat) { setError('Find your ground on the map'); return false }
+      return true
+    }
+
+    return true
+  }
+
+  async function save() {
+    if (!validateStep()) return
+    setBusy(true); setError('')
     try {
-      const photos = [f.photo1, f.photo2, f.photo3, f.photo4, f.photo5]
-        .filter(p => p.trim() !== '')
       await updateTurf(id, {
         userId: user.id,
-        name: f.name, sport: f.sport, address: f.address, city: f.city,
+        name: f.name.trim(),
+        sport: f.sport,
+        address: loc.address,
+        city: loc.city || '',
         price: Number(f.price),
-        openTime: f.openTime, closeTime: f.closeTime,
-        surface: f.surface, size: f.size,
-        amenities: f.amenities.split(',').map(a => a.trim()).filter(Boolean),
-        description: f.description, phone: f.phone,
-        lat: f.lat ? Number(f.lat) : null,
-        lng: f.lng ? Number(f.lng) : null,
+        openTime: f.openTime,
+        closeTime: f.closeTime,
+        surface: f.surface,
+        size: f.size,
+        amenities,
+        description: f.description,
+        phone: f.phone,
+        lat: loc.lat,
+        lng: loc.lng,
+        placeId: loc.placeId,
+        formattedAddress: loc.formattedAddress,
+        mapPrecision: loc.mapPrecision,
         photos
       })
-      navigate(`/turf/${id}`)
+      setSaved(true)
     } catch (err) {
       setError(err.message)
       setBusy(false)
     }
   }
 
-  if (loading) return <div className="page"><p className="muted">Loading…</p></div>
-  if (!f) return <div className="page"><p className="error">{error || 'Could Not Load Turf'}</p></div>
-
   return (
-    <div className="page">
-      <header className="page-head">
-        <h1>Edit My Turf</h1>
-        <p className="muted">Only You (The Owner) Can Edit This Turf</p>
-      </header>
+    <div className="page at-page">
 
-      <form className="form" onSubmit={handleSubmit}>
-        <label>Turf Name *</label>
-        <input value={f.name} onChange={e => upd('name', e.target.value)} required />
+      <button className="pm-change" onClick={() => navigate(`/turf/${id}`)}>
+        <Icon name="chevron" size={14} className="mg-back-icon" />
+        Back to ground
+      </button>
 
-        <label>Sport *</label>
-        <select value={f.sport} onChange={e => upd('sport', e.target.value)}>
-          {['Football','Cricket','Badminton','Tennis','Multi-Sport'].map(s =>
-            <option key={s}>{s}</option>
-          )}
-        </select>
-
-        <label>Address *</label>
-        <input value={f.address} onChange={e => upd('address', e.target.value)} required />
-
-        <label>City *</label>
-        <input value={f.city} onChange={e => upd('city', e.target.value)} required />
-
-        <button type="button" className="btn-locate" onClick={handleGeocode} disabled={geocoding}>
-          {geocoding ? '🔍 Finding Location…' : '📍 Update Location From Address'}
-        </button>
-
-        {mapPreview && (
-          <iframe title="map-preview" className="map-frame"
-            src={buildMapUrl(mapPreview.lat, mapPreview.lng)}
-            style={{ height: 140, marginBottom: 10 }} />
-        )}
-
-        <div className="two-col">
-          <div><label>Latitude</label><input value={f.lat} onChange={e => upd('lat', e.target.value)} /></div>
-          <div><label>Longitude</label><input value={f.lng} onChange={e => upd('lng', e.target.value)} /></div>
-        </div>
-
-        <label>Price Per Hour (₹) *</label>
-        <input type="number" value={f.price} onChange={e => upd('price', e.target.value)} required />
-
-        <div className="two-col">
-          <div>
-            <label>Opens at</label>
-            <TimeSelect value={f.openTime} onChange={v => upd('openTime', v)} />
+      <div className="at-steps">
+        {STEPS.map((s, i) => (
+          <div key={s} className={'at-step'
+            + (i === step ? ' at-step-on' : '')
+            + (i < step ? ' at-step-done' : '')}>
+            <span className="at-step-dot">
+              {i < step ? <Icon name="check" size={11} /> : i + 1}
+            </span>
+            <span className="at-step-label">{s}</span>
           </div>
-          <div>
-            <label>Closes at</label>
-            <TimeSelect value={f.closeTime} onChange={v => upd('closeTime', v)} />
+        ))}
+      </div>
+
+      {/* ══ 0 — BASICS ══ */}
+      {step === 0 && (
+        <>
+          <header className="at-head">
+            <h1 className="at-title">Edit your ground</h1>
+            <p className="at-sub">Update what players see first.</p>
+          </header>
+
+          <label className="at-label">Photos</label>
+          <PhotoUpload photos={photos} onChange={setPhotos} max={5} />
+
+          <label className="at-label">Ground name</label>
+          <input value={f.name} onChange={e => upd('name', e.target.value)} />
+
+          <label className="at-label">Sport</label>
+          <div className="at-sports">
+            {SPORTS.map(s => (
+              <button key={s.id} type="button"
+                className={'at-sport' + (f.sport === s.id ? ' at-sport-on' : '')}
+                onClick={() => upd('sport', s.id)}>
+                <Icon name={s.icon} size={17} />
+                {s.id}
+              </button>
+            ))}
           </div>
-        </div>
 
-        <div className="two-col">
-          <div><label>Surface</label><input value={f.surface} onChange={e => upd('surface', e.target.value)} /></div>
-          <div><label>Size</label><input value={f.size} onChange={e => upd('size', e.target.value)} /></div>
-        </div>
+          <label className="at-label">Price per hour</label>
+          <div className="at-price">
+            <span className="at-price-cur">₹</span>
+            <input type="number" inputMode="numeric" value={f.price}
+              onChange={e => upd('price', e.target.value)} />
+            <span className="at-price-per">/ hour</span>
+          </div>
+          <p className="at-hint">
+            Time-based rates are set in Manage Ground → Pricing.
+          </p>
+        </>
+      )}
 
-        <label>Amenities (Comma Separated)</label>
-        <input value={f.amenities} onChange={e => upd('amenities', e.target.value)} />
+      {/* ══ 1 — DETAILS ══ */}
+      {step === 1 && (
+        <>
+          <header className="at-head">
+            <h1 className="at-title">The details</h1>
+            <p className="at-sub">These help players decide.</p>
+          </header>
 
-        <label>Description</label>
-        <textarea rows={3} value={f.description} onChange={e => upd('description', e.target.value)} />
-
-        <label>Contact Phone *</label>
-        <input value={f.phone} onChange={e => upd('phone', e.target.value)} required />
-
-        <div className="photos-section">
-          <h3 style={{ margin: '14px 0 8px' }}>📸 Photos (Up To 5)</h3>
-          {[1,2,3,4,5].map(n => (
-            <div key={n}>
-              <label>Photo {n} {n === 1 ? '(Main)' : '(Optional)'}</label>
-              <input value={f[`photo${n}`]} onChange={e => upd(`photo${n}`, e.target.value)} />
-              {f[`photo${n}`]?.startsWith('http') && (
-                <img src={f[`photo${n}`]} alt="" className="photo-preview-thumb"
-                  onError={e => { e.target.style.display='none' }} />
-              )}
+          <label className="at-label">Opening hours</label>
+          <div className="two-col">
+            <div>
+              <p className="at-mini">Opens</p>
+              <TimeSelect value={f.openTime} onChange={v => upd('openTime', v)} />
             </div>
-          ))}
-        </div>
+            <div>
+              <p className="at-mini">Closes</p>
+              <TimeSelect value={f.closeTime} onChange={v => upd('closeTime', v)} />
+            </div>
+          </div>
 
-        {error && <p className="error">{error}</p>}
+          <label className="at-label">What's available?</label>
+          <div className="at-amenities">
+            {AMENITIES.map(a => (
+              <button key={a} type="button"
+                className={'at-amenity' + (amenities.includes(a) ? ' at-amenity-on' : '')}
+                onClick={() => toggleAmenity(a)}>
+                {amenities.includes(a) && <Icon name="check" size={12} />}
+                {a}
+              </button>
+            ))}
+          </div>
 
-        <button className="btn-primary" type="submit" disabled={busy}>
-          {busy ? 'Saving Changes…' : 'Save Changes'}
-        </button>
-        <button className="btn-ghost" type="button" onClick={() => navigate(`/turf/${id}`)}>
-          Cancel
-        </button>
-      </form>
+          <div className="two-col">
+            <div>
+              <label className="at-label">Surface</label>
+              <input value={f.surface} onChange={e => upd('surface', e.target.value)} />
+            </div>
+            <div>
+              <label className="at-label">Size</label>
+              <input value={f.size} onChange={e => upd('size', e.target.value)} />
+            </div>
+          </div>
+
+          <label className="at-label">Contact number</label>
+          <div className="au-phone-wrap">
+            <span className="au-phone-code">+91</span>
+            <input className="au-phone-input" inputMode="numeric"
+              value={f.phone}
+              onChange={e => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              maxLength={10} />
+            <span className={'au-phone-count' + (f.phone.length === 10 ? ' au-count-ok' : '')}>
+              {f.phone.length}/10
+            </span>
+          </div>
+
+          <label className="at-label">
+            Description <span className="at-optional">optional</span>
+          </label>
+          <textarea rows={3} value={f.description}
+            onChange={e => upd('description', e.target.value)} />
+        </>
+      )}
+
+      {/* ══ 2 — LOCATION ══ */}
+      {step === 2 && (
+        <>
+          <header className="at-head">
+            <h1 className="at-title">Where can players find you?</h1>
+            <p className="at-sub">
+              Search again if you have moved, or leave it as it is.
+            </p>
+          </header>
+
+          <AddressPicker value={loc} onChange={setLoc} />
+        </>
+      )}
+
+      {error && <p className="error">{error}</p>}
+
+      <div className="at-nav">
+        {step > 0 && (
+          <button className="at-back" onClick={() => { setStep(step - 1); setError('') }}>
+            Back
+          </button>
+        )}
+        {step < 2 ? (
+          <button className="at-next" onClick={() => validateStep() && setStep(step + 1)}>
+            Continue <Icon name="arrow" size={16} />
+          </button>
+        ) : (
+          <button className="at-next" disabled={busy} onClick={save}>
+            {busy ? 'Saving…' : 'Save changes'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
