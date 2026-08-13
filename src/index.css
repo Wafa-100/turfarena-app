@@ -4460,3 +4460,80 @@ h2, h3, .sheet-head h2, .pay-head h2,
 .at-steps:has(.at-step:nth-child(3):last-child) .at-step-label {
   font-size: 11px;
 }
+
+/* ── Address picker tabs ─────────────────────────────────────── */
+.ap-tabs {
+  display: flex; gap: 5px; background: var(--surface-3);
+  padding: 4px; border-radius: var(--r-md); margin-bottom: 14px;
+}
+.ap-tab {
+  flex: 1; position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 4px; border: none; border-radius: var(--r-sm);
+  background: none; color: var(--text-2);
+  font-size: 12px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all 0.18s;
+}
+.ap-tab-on { background: var(--surface); color: var(--text); box-shadow: var(--sh-1); }
+.ap-best {
+  position: absolute; top: -5px; right: 4px;
+  background: var(--brand); color: var(--brand-ink);
+  font-size: 8px; font-weight: 800; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: var(--r-full);
+}
+
+.ap-how {
+  background: var(--brand-soft); border-radius: var(--r-md);
+  padding: 14px 16px; margin-bottom: 12px;
+}
+.ap-how-title { font-size: 13px; font-weight: 800; color: var(--brand-dim); }
+.ap-how-sub { font-size: 12.5px; color: var(--text-2); margin-top: 4px; line-height: 1.5; }
+.ap-how-steps {
+  margin: 9px 0 0 16px; padding: 0;
+  font-size: 12.5px; color: var(--text-2); line-height: 1.85;
+}
+.ap-how-steps b { color: var(--text); font-weight: 700; }
+
+.ap-note {
+  font-size: 11.5px; color: var(--text-3);
+  margin-top: 9px; line-height: 1.5;
+}
+
+/* ── Nudge pad ───────────────────────────────────────────────── */
+.ap-nudge {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--r-md); padding: 13px; margin-top: 10px;
+  text-align: center;
+}
+.ap-nudge-label {
+  font-size: 11.5px; font-weight: 700; color: var(--text-2); margin-bottom: 9px;
+}
+.ap-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  grid-template-rows: repeat(3, 34px);
+  gap: 4px; justify-content: center;
+}
+.ap-pad button {
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-2);
+  font-size: 15px; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.14s;
+}
+.ap-pad button:hover { border-color: var(--brand); color: var(--brand-dim); }
+.ap-pad button:active { transform: scale(0.9); }
+.ap-pad-up    { grid-column: 2; grid-row: 1; }
+.ap-pad-left  { grid-column: 1; grid-row: 2; }
+.ap-pad-mid   {
+  grid-column: 2; grid-row: 2;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--brand);
+}
+.ap-pad-right { grid-column: 3; grid-row: 2; }
+.ap-pad-down  { grid-column: 2; grid-row: 3; }
+
+.ap-coords {
+  font-size: 11px; color: var(--text-3); margin-top: 9px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+}

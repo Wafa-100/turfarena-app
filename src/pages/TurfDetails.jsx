@@ -324,14 +324,12 @@ export default function TurfDetails({ user }) {
                 className="td-map"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
-                src={buildMapUrl(turf.lat, turf.lng, turf.placeId)}
               />
               <p className="td-address-line">
                 <Icon name="pin" size={14} />
                 {turf.formattedAddress || `${turf.address}, ${turf.city}`}
               </p>
               <a className="td-directions"
-                href={buildDirectionsLink(turf.lat, turf.lng, turf.placeId, turf.name)}
                 target="_blank" rel="noreferrer">
                 <Icon name="arrow" size={18} />
                 <div>
