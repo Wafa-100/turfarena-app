@@ -1,4 +1,5 @@
 import Icon from '../components/Icon'
+import Logo from '../components/Logo'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard',   icon: 'chart' },
